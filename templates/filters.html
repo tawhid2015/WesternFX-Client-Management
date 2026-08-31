@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Advanced Filters — {{ app_name }}{% endblock %}
+{% block page_title %}Advanced Filters{% endblock %}
+{% block content %}
+<!-- Filter Panel -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <h3 class="text-sm font-semibold text-gray-700 mb-3">Filter Criteria</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Status</label>
+            <select id="f-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">Any</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="NEW">New</option>
+                <option value="NEWLY ACTIVE">Newly Active</option>
+                <option value="NEWLY INACTIVE">Newly Inactive</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Deposit Min ($)</label>
+            <input type="number" id="f-dep-min" placeholder="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Deposit Max ($)</label>
+            <input type="number" id="f-dep-max" placeholder="∞" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">PnL Min ($)</label>
+            <input type="number" id="f-pnl-min" placeholder="-∞" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">PnL Max ($)</label>
+            <input type="number" id="f-pnl-max" placeholder="∞" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Balance Min ($)</label>
+            <input type="number" id="f-bal-min" placeholder="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Balance Max ($)</label>
+            <input type="number" id="f-bal-max" placeholder="∞" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="text-xs text-gray-500 block mb-1">Commission Min ($)</label>
+            <input type="number" id="f-comm-min" placeholder="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+    </div>
+    <div class="flex gap-2 mt-3">
+        <button onclick="applyFilters()" class="btn-primary text-sm"><i class="fas fa-filter mr-1"></i>Apply Filters</button>
+        <button onclick="clearFilters()" class="btn-secondary text-sm"><i class="fas fa-times mr-1"></i>Clear</button>
+    </div>
+</div>
+
+<!-- Results -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-gray-700">Results</h3>
+        <span id="filter-count" class="text-sm text-gray-500">Loading...</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="table-header">Name</th>
+                    <th class="table-header">Account</th>
+                    <th class="table-header">Status</th>
+                    <th class="table-header text-right">Deposit</th>
+                    <th class="table-header text-right">Balance</th>
+                    <th class="table-header text-right">PnL</th>
+                    <th class="table-header text-right">Commission</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="filter-results">
+                <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Click Apply Filters to see results</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/filters.js') }}?v=2"></script>
+{% endblock %}

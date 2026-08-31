@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Update Monthly Sheet — {{ app_name }}{% endblock %}
+{% block page_title %}Update Monthly Sheet{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <!-- Step 1: Fetch -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold mb-2">1. Fetch Latest Data from API 3</h3>
+        <p class="text-sm text-gray-500 mb-4">Click the button below to fetch the current data from your Update Data sheet (API 3).</p>
+        <div class="flex gap-3 items-center">
+            <button id="btn-fetch" onclick="fetchApi3()" class="btn-primary">
+                <i class="fas fa-download mr-2"></i>Fetch from API 3
+            </button>
+            <span id="fetch-status" class="text-sm"></span>
+        </div>
+    </div>
+
+    <!-- Step 1b: Upload HTML -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold mb-2">2. Upload WesternFX My Traders HTML</h3>
+        <p class="text-sm text-gray-500 mb-4">Upload a saved HTML file from cabinet.westernfx.com/partnership/traders. System will auto-parse all trader data.</p>
+        <div class="flex gap-3 items-center flex-wrap">
+            <input type="file" id="html-file" accept=".html,.htm" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <button id="btn-parse-html" onclick="parseHtmlFile()" class="btn-primary">
+                <i class="fas fa-file-code mr-2"></i>Parse & Preview
+            </button>
+            <span id="html-parse-status" class="text-sm"></span>
+        </div>
+    </div>
+
+    <!-- Step 2: Preview (shared for API & HTML) -->
+    <div id="preview-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold mb-2">2. Preview</h3>
+        <p class="text-sm text-gray-500 mb-4">Review the data before saving. <span id="preview-count" class="font-medium text-gray-700"></span> records found.</p>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-left">
+                <thead id="preview-head" class="bg-gray-50"></thead>
+                <tbody id="preview-body" class="text-sm"></tbody>
+            </table>
+        </div>
+        <div class="mt-4 flex gap-3">
+            <input type="text" id="month-label" placeholder="Month label (e.g., 2026-08)"
+                class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="btn-save" onclick="saveSnapshot()" class="btn-success">
+                <i class="fas fa-save mr-2"></i>Save as New Snapshot
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 3: Sync API 2 -->
+    <div id="sync-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold mb-2">3. Sync to Current Data Sheet (API 2)</h3>
+        <p class="text-sm text-gray-500 mb-4">Update API 2 records for clients referred by a specific person.</p>
+        <div class="flex gap-3 items-center mb-4">
+            <select id="referrer-select" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select Referred by...</option>
+            </select>
+            <button id="btn-sync" onclick="syncApi2()" class="btn-primary">
+                <i class="fas fa-sync mr-2"></i>Update Current Sheet
+            </button>
+            <span id="sync-status" class="text-sm"></span>
+        </div>
+        <div id="sync-preview" class="hidden overflow-x-auto">
+            <p class="text-sm text-gray-500 mb-2">Matching accounts to update:</p>
+            <table class="min-w-full text-left">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="table-header">Account</th>
+                        <th class="table-header">Name</th>
+                        <th class="table-header">Current Balance</th>
+                        <th class="table-header">Deposit</th>
+                    </tr>
+                </thead>
+                <tbody id="sync-body" class="text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold mb-2">Result</h3>
+        <div id="result-content"></div>
+    </div>
+
+    <!-- Delete Month -->
+    <div class="bg-white rounded-xl shadow-sm border border-red-100 p-6">
+        <h3 class="text-lg font-semibold mb-2 text-red-700">⚠️ Delete Monthly Snapshot</h3>
+        <p class="text-sm text-gray-500 mb-4">Select a month to permanently delete it and all its client records. This cannot be undone.</p>
+        <div class="flex gap-3 items-center">
+            <select id="delete-month-select" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                <option value="">Select month to delete...</option>
+            </select>
+            <button id="btn-delete" onclick="deleteMonth()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition">
+                <i class="fas fa-trash-alt mr-2"></i>Delete Month
+            </button>
+            <span id="delete-status" class="text-sm"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/update.js') }}?v=5"></script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}All Clients — {{ app_name }}{% endblock %}
+{% block page_title %}All Clients{% endblock %}
+{% block content %}
+<!-- Search & Filters -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" id="search-input" placeholder="Search by name, account, or email..."
+                    class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    oninput="filterClients()">
+            </div>
+            <select id="status-filter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="filterClients()">
+                <option value="">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="NEW">New</option>
+                <option value="NEWLY ACTIVE">Newly Active</option>
+                <option value="NEWLY INACTIVE">Newly Inactive</option>
+            </select>
+            <select id="deposit-filter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="filterClients()">
+                <option value="">All Deposits</option>
+                <option value="has">Has Deposit</option>
+                <option value="zero">Zero Deposit</option>
+            </select>
+            <select id="pnl-filter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="filterClients()">
+                <option value="">All PnL</option>
+                <option value="profit">Profit</option>
+                <option value="loss">Loss</option>
+                <option value="zero">Zero</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="result-count" class="text-sm text-gray-500 whitespace-nowrap">Loading...</span>
+            <a href="/api/export-clients" class="btn-primary text-sm whitespace-nowrap" download><i class="fas fa-download mr-1"></i> CSV</a>
+        </div>
+    </div>
+</div>
+
+<!-- Clients Table -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-left">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="table-header cursor-pointer hover:bg-gray-100" onclick="sortClients('fullName')">
+                        Name <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100" onclick="sortClients('account')">
+                        Account <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100" onclick="sortClients('status')">
+                        Status <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100 text-right" onclick="sortClients('deposit')">
+                        Deposit <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100 text-right" onclick="sortClients('balance')">
+                        Balance <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100 text-right" onclick="sortClients('pnl')">
+                        PnL <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header cursor-pointer hover:bg-gray-100 text-right" onclick="sortClients('commission')">
+                        Commission <i class="fas fa-sort text-gray-300 ml-1 text-xs"></i>
+                    </th>
+                    <th class="table-header">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="clients-table-body" class="text-sm">
+                <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading clients...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination -->
+    <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+        <div class="flex items-center gap-2">
+            <button id="btn-prev" onclick="changePage(-1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span id="page-info" class="text-sm text-gray-600">Page 1 of 1</span>
+            <button id="btn-next" onclick="changePage(1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-500">Show</span>
+            <select id="page-size" class="px-2 py-1 border border-gray-300 rounded text-sm" onchange="changePageSize()">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-500">per page</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/clients.js') }}?v=2"></script>
+{% endblock %}

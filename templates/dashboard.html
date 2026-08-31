@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<!-- Snapshot Selector & Info -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+    <div class="flex items-center gap-3">
+        <select id="snapshot-select" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="">Latest Snapshot</option>
+        </select>
+        <span id="snapshot-date" class="text-sm text-gray-500"></span>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-400">Data source: Local SQLite snapshots</span>
+        <a href="/update" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+            <i class="fas fa-sync-alt mr-1"></i>Fetch New Data
+        </a>
+    </div>
+</div>
+
+<!-- KPI Cards Row 1 -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Total Clients</p>
+            <i class="fas fa-users text-blue-400 text-sm"></i>
+        </div>
+        <p class="text-2xl font-bold text-gray-800" id="kpi-total">—</p>
+        <p class="text-xs text-gray-400 mt-1" id="kpi-total-change"></p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Active</p>
+            <i class="fas fa-circle text-green-400 text-sm"></i>
+        </div>
+        <p class="text-2xl font-bold text-green-600" id="kpi-active">—</p>
+        <p class="text-xs text-gray-400 mt-1">Balance &gt; 0</p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Inactive</p>
+            <i class="fas fa-circle text-red-400 text-sm"></i>
+        </div>
+        <p class="text-2xl font-bold text-red-600" id="kpi-inactive">—</p>
+        <p class="text-xs text-gray-400 mt-1">Balance &le; 0</p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Profitable</p>
+            <i class="fas fa-trophy text-emerald-400 text-sm"></i>
+        </div>
+        <p class="text-2xl font-bold text-emerald-600" id="kpi-profitable">—</p>
+        <p class="text-xs text-gray-400 mt-1">Balance &gt; Deposit</p>
+    </div>
+</div>
+
+<!-- KPI Cards Row 2 -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Total Deposit</p>
+            <i class="fas fa-wallet text-blue-400 text-sm"></i>
+        </div>
+        <p class="text-xl font-bold text-blue-600" id="kpi-deposit">—</p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Profitable Client Profit</p>
+            <i class="fas fa-coins text-green-500 text-sm"></i>
+        </div>
+        <p class="text-xl font-bold text-green-600" id="kpi-profitable-profit">—</p>
+        <p class="text-xs text-gray-400 mt-1">Σ(Balance − Deposit)</p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Commission</p>
+            <i class="fas fa-hand-holding-usd text-amber-400 text-sm"></i>
+        </div>
+        <p class="text-xl font-bold text-amber-600" id="kpi-commission">—</p>
+    </div>
+    <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Commission Total</p>
+            <i class="fas fa-coins text-amber-500 text-sm"></i>
+        </div>
+        <p class="text-xl font-bold text-amber-700" id="kpi-commission-total">—</p>
+    </div>
+</div>
+
+<!-- Account Blown Section (when present) -->
+<div id="blown-section" class="hidden bg-white rounded-xl shadow-sm border border-red-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-red-700 mb-2">💥 Account Blown</h3>
+    <p class="text-sm text-gray-500 mb-4">Clients who made a deposit but now have a balance of 0 or below.</p>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+            <thead class="bg-red-50">
+                <tr>
+                    <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Account</th>
+                    <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Name</th>
+                    <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Deposit</th>
+                    <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Balance</th>
+                    <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase text-right">Loss</th>
+                </tr>
+            </thead>
+            <tbody id="blown-table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Client Status Distribution</h3>
+        <div style="height: 240px;">
+            <canvas id="chart-status"></canvas>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Client Growth</h3>
+        <div style="height: 240px;">
+            <canvas id="chart-growth"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Financial Trends</h3>
+        <div style="height: 240px;">
+            <canvas id="chart-financial"></canvas>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Highlights</h3>
+        <div id="highlights-content" class="space-y-2">
+            <p class="text-sm text-gray-400 italic">Loading highlights...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Row: Profit vs Loss Distribution -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Profit vs Loss</h3>
+        <div style="height: 200px;">
+            <canvas id="chart-pnl"></canvas>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Deposit Distribution</h3>
+        <div style="height: 200px;">
+            <canvas id="chart-deposit"></canvas>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Zero Deposit Clients</h3>
+        <div class="text-center py-4">
+            <p class="text-4xl font-bold text-gray-400" id="kpi-zero-deposit">—</p>
+            <p class="text-sm text-gray-500 mt-2">clients with no deposit</p>
+            <p class="text-xs text-gray-400 mt-1" id="kpi-zero-deposit-pct"></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=12"></script>
+{% endblock %}

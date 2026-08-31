@@ -1,0 +1,172 @@
+/* WesternFX IB Management — Settings Page (v2: with Cloud Backup) */
+
+const DEFAULT_URLS = {
+    api1: 'https://script.google.com/macros/s/AKfycbx2m-4xxpU3HiXl43tTvCti0wiUkclWiQkVG-hlL841xhjsYkRsSjHq_bY2eAvjZWxf/exec',
+    api2: 'https://script.google.com/macros/s/AKfycbxqYd0QanVEgAPNj5S4M6vQAtPavFEvhcsa6d_hgx6ip1-tZdLswLPgll17qeiqfuAx/exec',
+    api3: 'https://script.google.com/macros/s/AKfycbx3av5WhEMS0MQVXXKxIdk3g6PcETmDw-Ty_sJYm3dstHD6hi2-_X_6J04O8EvQ5xw/exec'
+};
+
+let settingsData = {};
+
+async function loadSettings() {
+    settingsData = await getJSON('/api/settings');
+    document.getElementById('api1-url').value = settingsData.api1_url || DEFAULT_URLS.api1;
+    document.getElementById('api2-url').value = settingsData.api2_url || DEFAULT_URLS.api2;
+    document.getElementById('api3-url').value = settingsData.api3_url || DEFAULT_URLS.api3;
+    document.getElementById('dropbox-token').value = settingsData.dropbox_token || '';
+    loadBackupStatus();
+    loadBackupsList();
+}
+
+async function saveSettings() {
+    const payload = {
+        api1_url: document.getElementById('api1-url').value.trim(),
+        api2_url: document.getElementById('api2-url').value.trim(),
+        api3_url: document.getElementById('api3-url').value.trim()
+    };
+    try {
+        const result = await postJSON('/api/settings', payload);
+        if (result.success) {
+            showToast('Settings saved successfully', 'success');
+        } else {
+            showToast('Failed to save settings', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function saveDropboxToken() {
+    const token = document.getElementById('dropbox-token').value.trim();
+    if (!token) {
+        showToast('Please paste a Dropbox token', 'warning');
+        return;
+    }
+    try {
+        const result = await postJSON('/api/settings', { dropbox_token: token });
+        const statusEl = document.getElementById('token-status');
+        if (result.success) {
+            statusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Token saved</span>';
+            showToast('Dropbox token saved', 'success');
+            loadBackupStatus();
+            loadBackupsList();
+        } else {
+            statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> Save failed</span>';
+            showToast('Failed to save token', 'error');
+        }
+    } catch (e) {
+        document.getElementById('token-status').innerHTML = '<span class="text-red-600">' + e.message + '</span>';
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function resetDefaults() {
+    document.getElementById('api1-url').value = DEFAULT_URLS.api1;
+    document.getElementById('api2-url').value = DEFAULT_URLS.api2;
+    document.getElementById('api3-url').value = DEFAULT_URLS.api3;
+    showToast('Defaults restored. Click Save to apply.', 'info');
+}
+
+async function testApi(apiKey) {
+    const statusEl = document.getElementById(apiKey + '-status');
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500"></i> Testing...';
+    try {
+        const result = await postJSON('/api/test-api', { api: apiKey });
+        if (result.success) {
+            statusEl.innerHTML = `<span class="text-green-600"><i class="fas fa-check-circle"></i> Connected (${result.records} records)</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-red-600"><i class="fas fa-times-circle"></i> ${result.error}</span>`;
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<span class="text-red-600"><i class="fas fa-times-circle"></i> ${e.message}</span>`;
+    }
+}
+
+// ── Cloud Backup Functions ──
+
+async function loadBackupStatus() {
+    try {
+        const result = await getJSON('/api/backup-status');
+        const infoEl = document.getElementById('last-backup-info');
+        if (result.success && result.last_backup) {
+            const date = new Date(result.last_backup.date).toLocaleString();
+            infoEl.innerHTML = '<i class="fas fa-cloud text-blue-400 mr-1"></i> Last backup: <strong>' + date + '</strong> (' + (result.last_backup.filename || 'unknown') + ')';
+        } else {
+            infoEl.innerHTML = '<i class="fas fa-exclamation-circle text-amber-400 mr-1"></i> No backups yet. Click <strong>Backup Now</strong>.';
+        }
+    } catch (e) {
+        console.error('Failed to load backup status:', e);
+    }
+}
+
+async function loadBackupsList() {
+    const container = document.getElementById('backups-list');
+    if (!container) return;
+    container.innerHTML = '<p class="text-sm text-gray-400 px-4 py-4 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading backups...</p>';
+
+    try {
+        const result = await getJSON('/api/backups');
+        if (!result.success) {
+            container.innerHTML = '<p class="text-sm text-red-500 px-4 py-4 text-center">' + (result.error || 'Failed to load backups') + '</p>';
+            return;
+        }
+        const backups = result.backups || [];
+        if (backups.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-400 px-4 py-4 text-center">No backups found on Dropbox.</p>';
+            return;
+        }
+        let html = '<table class="w-full text-sm"><thead><tr class="bg-gray-50"><th class="px-3 py-2 text-left">Filename</th><th class="px-3 py-2 text-left">Date</th><th class="px-3 py-2 text-right">Size</th><th class="px-3 py-2 text-right">Action</th></tr></thead><tbody>';
+        backups.forEach(function(b) {
+            const dateStr = b.created_at ? new Date(b.created_at).toLocaleString() : '—';
+            const sizeMB = (b.size / (1024 * 1024)).toFixed(2);
+            html += '<tr class="border-t"><td class="px-3 py-2 font-mono text-xs">' + b.name + '</td>';
+            html += '<td class="px-3 py-2 text-gray-600">' + dateStr + '</td>';
+            html += '<td class="px-3 py-2 text-right">' + sizeMB + ' MB</td>';
+            html += '<td class="px-3 py-2 text-right"><button onclick="restoreBackup(\'' + b.name + '\')" class="text-blue-600 hover:text-blue-800 text-sm font-medium"><i class="fas fa-undo mr-1"></i>Restore</button></td></tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<p class="text-sm text-red-500 px-4 py-4 text-center">' + e.message + '</p>';
+    }
+}
+
+async function backupNow() {
+    const btn = document.getElementById('backup-status');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Backing up...';
+    try {
+        const result = await postJSON('/api/backup-now', {});
+        if (result.success) {
+            btn.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Backup saved: ' + result.filename + '</span>';
+            showToast('Backup uploaded to Dropbox', 'success');
+            loadBackupStatus();
+            loadBackupsList();
+        } else {
+            btn.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + result.error + '</span>';
+            showToast('Backup failed: ' + result.error, 'error');
+        }
+    } catch (e) {
+        btn.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function restoreBackup(filename) {
+    if (!confirm('This will REPLACE your current database with the backup "' + filename + '". Are you sure?')) {
+        return;
+    }
+    try {
+        const result = await postJSON('/api/restore', { filename: filename });
+        if (result.success) {
+            alert('Database restored successfully! The app will now reload.');
+            window.location.reload();
+        } else {
+            showToast('Restore failed: ' + result.error, 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadSettings);
