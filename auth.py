@@ -75,42 +75,56 @@ def get_client_ip(request):
     """Public: get the real client IP."""
     return _get_client_ip(request)
 
+
 def is_ip_whitelisted(ip: str) -> bool:
     """Check if an IP address is whitelisted."""
     if get_db is None:
         return True  # During testing
-    with get_db() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM auth_ips WHERE ip = ?", (ip,)
-        ).fetchone()
-        return row is not None
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM auth_ips WHERE ip = ?", (ip,)
+            ).fetchone()
+            return row is not None
+    except Exception:
+        # Table may not exist (e.g., restored old DB) — treat as not whitelisted
+        return False
 
 def whitelist_ip(ip: str) -> None:
     """Add an IP address to the whitelist."""
     if get_db is None:
         return
-    with get_db() as conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO auth_ips (ip, authorized_at) VALUES (?, ?)",
-            (ip, datetime.utcnow().isoformat()),
-        )
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO auth_ips (ip, authorized_at) VALUES (?, ?)",
+                (ip, datetime.utcnow().isoformat()),
+            )
+    except Exception:
+        pass
 
 def remove_whitelisted_ip(ip: str) -> None:
     """Remove an IP address from the whitelist."""
     if get_db is None:
         return
-    with get_db() as conn:
-        conn.execute("DELETE FROM auth_ips WHERE ip = ?", (ip,))
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM auth_ips WHERE ip = ?", (ip,))
+    except Exception:
+        pass
 
 def get_all_whitelisted_ips():
     """Return all whitelisted IPs."""
     if get_db is None:
         return []
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT ip, authorized_at FROM auth_ips ORDER BY authorized_at DESC"
-        ).fetchall()
-        return [dict(r) for r in rows]
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT ip, authorized_at FROM auth_ips ORDER BY authorized_at DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
 
 
 # ── Session Token Management ──────────────────────────────

@@ -1259,8 +1259,10 @@ def api_restore_sql():
                     "error": "Invalid SQL: missing required tables. Found: " + ", ".join(tables)
                 }), 400
 
-            # Replace DB
+            # Replace DB and ensure schema is up to date
             shutil.move(temp_path, db_path)
+            # Re-run init_db to add any missing tables (e.g., auth_ips on restored old DB)
+            init_db()
             return jsonify({
                 "success": True,
                 "message": f"Database restored. Auto-backup saved at {os.path.basename(backup_path)}"

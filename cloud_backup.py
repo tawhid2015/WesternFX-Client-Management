@@ -192,6 +192,10 @@ def restore(filename=None):
         with open(db_path, 'wb') as f:
             f.write(res.content)
 
+        # Ensure all required tables exist (e.g., auth_ips on restored old DB)
+        from database import init_db
+        init_db()
+
         return {'success': True, 'message': f'Restored from {filename}. Local backup saved as {os.path.basename(backup_local)}'}
     except DbxException as e:
         return {'success': False, 'message': f'Dropbox error: {str(e)}'}
