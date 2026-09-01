@@ -32,6 +32,10 @@ function fmtCurrency(n) {
 let previewData = null;
 let pollInterval = null;
 
+function _get(id) {
+    return document.getElementById(id);
+}
+
 // ── Init ──
 document.addEventListener('DOMContentLoaded', function() {
     loadReferrers();
