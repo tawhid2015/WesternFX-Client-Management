@@ -25,6 +25,19 @@ def _get_token():
         import database as db
         return db.get_setting('dropbox_token', '')
 
+def _get_token_error():
+    """Try to get token and return (token, error_message)."""
+    try:
+        from dropbox_oauth import get_access_token
+        return get_access_token(), None
+    except Exception as e:
+        # Fallback to old static token
+        import database as db
+        token = db.get_setting('dropbox_token', '')
+        if token:
+            return token, None
+        return None, str(e)
+
 def _get_dbx():
     _lazy_import()
     token = _get_token()
@@ -116,15 +129,19 @@ def backup(upload=True, keep_last=30):
 
 def list_backups():
     """Return list of backups from Dropbox directly (syncs local index)."""
-    dbx = _get_dbx()
-    if dbx is None:
-        return {'success': False, 'message': 'Dropbox not configured. Connect in Settings.'}
+    _lazy_import()
+    token, err = _get_token_error()
+    if err or not token:
+        return {'success': False, 'error': err or 'Dropbox not configured. Connect in Settings.'}
+    if dropbox is None:
+        return {'success': False, 'error': 'Dropbox library not installed.'}
+
+    dbx = dropbox.Dropbox(token)
     try:
         res = dbx.files_list_folder('/westernfx/backups')
         backups = []
         for entry in res.entries:
             if hasattr(entry, 'name') and entry.name.endswith('.db'):
-                # Parse timestamp from filename: westernfx_YYYY-MM-DD_HH-MM-SS.db
                 ts = entry.name.replace('westernfx_', '').replace('.db', '')
                 size = getattr(entry, 'size', 0)
                 backups.append({
@@ -133,15 +150,13 @@ def list_backups():
                     'size': size,
                     'created_at': getattr(entry, 'client_modified', datetime.now().isoformat())
                 })
-        # Sort newest first
         backups.sort(key=lambda x: x['timestamp'], reverse=True)
-        # Sync local index
         _save_backup_index(backups)
         return {'success': True, 'backups': backups}
     except DbxException as e:
-        return {'success': False, 'message': f'Dropbox error: {str(e)}'}
+        return {'success': False, 'error': f'Dropbox API error: {str(e)}'}
     except Exception as e:
-        return {'success': False, 'message': f'Error: {str(e)}'}
+        return {'success': False, 'error': f'Error: {str(e)}\n{traceback.format_exc()}'}
 
 def _get_latest_filename():
     """Get latest backup filename from local index."""

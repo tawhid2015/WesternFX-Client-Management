@@ -176,7 +176,8 @@ async function loadBackupsList() {
     try {
         const result = await getJSON('/api/backups');
         if (!result.success) {
-            container.innerHTML = '<p class="text-sm text-red-500 px-4 py-4 text-center">' + (result.error || 'Failed to load backups') + '</p>';
+            const msg = result.error || result.message || 'Failed to load backups';
+            container.innerHTML = '<p class="text-sm text-red-500 px-4 py-4 text-center">' + msg + '</p>';
             return;
         }
         const backups = result.backups || [];
