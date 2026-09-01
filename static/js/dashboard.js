@@ -106,17 +106,27 @@ function renderKPIs(stats) {
 function renderBlownSection(stats) {
     const section = getEl('blown-section');
     const tbody = getEl('blown-table-body');
-    if (!section || !tbody) return;
+    const countBadge = getEl('blown-count');
+    const totalLostEl = getEl('blown-total-lost');
+    if (!section) return;
     const accounts = (stats && stats.blown_accounts) || [];
-    if (accounts.length === 0) { section.classList.add('hidden'); return; }
+    if (accounts.length === 0) {
+        section.classList.add('hidden');
+        if (countBadge) countBadge.textContent = '0';
+        return;
+    }
     section.classList.remove('hidden');
+    if (countBadge) countBadge.textContent = String(accounts.length);
     let html = '';
+    let totalLost = 0;
     accounts.forEach(function(c) {
         const loss = (c.deposit || 0) - (c.balance || 0);
+        totalLost += loss;
         html += '<tr class="border-b border-gray-100"><td class="px-4 py-2 text-sm text-gray-700">' + (c.account || '') + '</td><td class="px-4 py-2 text-sm text-gray-700">' + (c.fullName || '') + '</td><td class="px-4 py-2 text-sm text-gray-700 text-right">' + fmtCurrency(c.deposit) + '</td><td class="px-4 py-2 text-sm text-red-600 text-right font-medium">' + fmtCurrency(c.balance) + '</td><td class="px-4 py-2 text-sm text-red-600 text-right font-medium">' + fmtCurrency(loss) + '</td></tr>';
     });
-    html += '<tr class="bg-red-50 font-semibold"><td class="px-4 py-2 text-sm text-gray-800" colspan="2">TOTAL BLOWN: ' + accounts.length + '</td><td class="px-4 py-2 text-sm text-gray-800 text-right" colspan="3"></td></tr>';
-    tbody.innerHTML = html;
+    html += '<tr class="bg-red-50 font-semibold"><td class="px-4 py-2 text-sm text-gray-800" colspan="2">TOTAL: ' + accounts.length + ' accounts</td><td class="px-4 py-2 text-sm text-gray-800 text-right" colspan="3">Total Lost: ' + fmtCurrency(totalLost) + '</td></tr>';
+    if (tbody) tbody.innerHTML = html;
+    if (totalLostEl) totalLostEl.textContent = fmtCurrency(totalLost);
 }
 
 function renderHighlights(stats, clients) {
@@ -153,13 +163,6 @@ function renderHighlights(stats, clients) {
             html += '<div class="flex justify-between text-sm py-0.5"><span class="text-gray-700 truncate" style="max-width:60%">' + (c.fullName || c.account || '') + '</span><span class="text-red-600 font-medium">' + fmtCurrency(c.balance) + '</span></div>';
         });
         html += '<div class="flex justify-between text-sm py-1 mt-1 border-t border-gray-100"><span class="text-gray-600 font-medium">Total Negative:</span><span class="text-red-600 font-bold">−' + fmtCurrency(totalNegative).replace('$','') + '</span></div></div>';
-    }
-
-    const blown = (stats && stats.blown_accounts) || [];
-    if (blown.length > 0) {
-        let totalLost = 0;
-        blown.forEach(function(c) { totalLost += ((c.deposit || 0) - (c.balance || 0)); });
-        html += '<div><p class="text-xs font-semibold text-orange-600 uppercase mb-2">💥 Account Blown (' + blown.length + ')</p><p class="text-sm text-orange-600">Deposit lost: ' + fmtCurrency(totalLost) + '</p></div>';
     }
 
     container.innerHTML = html;

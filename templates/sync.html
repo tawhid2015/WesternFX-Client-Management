@@ -2,55 +2,53 @@
 {% block title %}Sync API 2 — {{ app_name }}{% endblock %}
 {% block page_title %}Sync API 2 with API 3{% endblock %}
 {% block content %}
-
-<!-- Step 1: Referrer Selection -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-    <h3 class="text-lg font-bold text-gray-800 mb-3">Sync API 2 with API 3</h3>
-    <p class="text-sm text-gray-500 mb-3">Select a referrer to preview what will be added or updated in API 2. No changes are made until you click <strong>Sync Now</strong>.</p>
+<!-- Step 1 -->
+<div class="step-card">
+    <h3 class="font-bold text-gray-800 mb-1">Sync API 2 with API 3</h3>
+    <p class="text-sm text-gray-400 mb-3">Select a referrer to preview what will be added or updated. No changes until you click <strong>Sync Now</strong>.</p>
     <div class="flex flex-wrap gap-3 items-end">
         <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Referred by</label>
-            <select id="sync-referrer-select" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]">
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Referred by</label>
+            <select id="sync-referrer-select" class="fx-select min-w-[200px]">
                 <option value="">-- Select Referrer --</option>
             </select>
         </div>
-        <button id="btn-preview" onclick="previewSync()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            Preview Changes
+        <button id="btn-preview" onclick="previewSync()" class="btn-primary">
+            <i class="fas fa-eye mr-1"></i>Preview Changes
         </button>
     </div>
 </div>
 
 <!-- Loading -->
-<div id="sync-loading" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-    <i class="fas fa-spinner fa-spin text-blue-500 text-2xl mb-3"></i>
-    <p class="text-gray-500">Comparing API 3 with API 2...</p>
+<div id="sync-loading" class="hidden fx-panel p-8 text-center">
+    <i class="fas fa-spinner fa-spin text-green-500 text-2xl mb-3"></i>
+    <p class="text-gray-400">Comparing API 3 with API 2...</p>
 </div>
 
 <!-- Preview Results -->
 <div id="preview-section" class="hidden space-y-4">
 
     <!-- Summary -->
-    <div id="preview-summary" class="bg-blue-50 rounded-lg p-3 text-center">
-        <span id="summary-text" class="text-sm text-blue-800 font-medium"></span>
+    <div id="preview-summary" class="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+        <span id="summary-text" class="text-sm text-green-800 font-medium"></span>
     </div>
 
     <!-- NEW DATA -->
-    <div id="new-data-section" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hidden">
-        <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <i class="fas fa-user-plus text-purple-500"></i>
-            New Data <span id="new-count" class="text-sm font-normal text-gray-500">(0)</span>
-        </h4>
-        <p class="text-xs text-gray-500 mb-3">Clients in API 3 not found in API 2. Will be added.</p>
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
-            <table class="w-full text-sm">
+    <div id="new-data-section" class="fx-panel hidden">
+        <div class="fx-panel-header flex items-center gap-2">
+            <i class="fas fa-user-plus text-green-500"></i>
+            New Data <span id="new-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
+        </div>
+        <div class="overflow-x-auto p-4">
+            <table class="fx-table">
                 <thead>
-                    <tr class="bg-purple-50">
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Account Id</th>
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Student Name</th>
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Mail Id</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Deposit</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Current Balance</th>
-                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Active / Inactive</th>
+                    <tr class="bg-green-50">
+                        <th>Account Id</th>
+                        <th>Student Name</th>
+                        <th>Mail Id</th>
+                        <th class="text-right">Deposit</th>
+                        <th class="text-right">Balance</th>
+                        <th class="text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody id="new-data-body"></tbody>
@@ -59,19 +57,18 @@
     </div>
 
     <!-- UPDATING DATA -->
-    <div id="updating-data-section" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hidden">
-        <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <i class="fas fa-edit text-yellow-500"></i>
-            Updating Data <span id="updating-count" class="text-sm font-normal text-gray-500">(0)</span>
-        </h4>
-        <p class="text-xs text-gray-500 mb-3">Existing clients with changes in API 3. Will be updated.</p>
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
-            <table class="w-full text-sm">
+    <div id="updating-data-section" class="fx-panel hidden">
+        <div class="fx-panel-header flex items-center gap-2">
+            <i class="fas fa-edit text-amber-500"></i>
+            Updating Data <span id="updating-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
+        </div>
+        <div class="overflow-x-auto p-4">
+            <table class="fx-table">
                 <thead>
-                    <tr class="bg-yellow-50">
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Account Id</th>
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Student Name</th>
-                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Changes</th>
+                    <tr class="bg-amber-50">
+                        <th>Account Id</th>
+                        <th>Student Name</th>
+                        <th>Changes</th>
                     </tr>
                 </thead>
                 <tbody id="updating-data-body"></tbody>
@@ -80,7 +77,7 @@
     </div>
 
     <!-- NO CHANGES -->
-    <div id="no-changes" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+    <div id="no-changes" class="hidden fx-panel p-8 text-center">
         <i class="fas fa-check-circle text-green-500 text-3xl mb-3"></i>
         <p class="text-gray-600 font-medium">Everything is up to date!</p>
         <p class="text-sm text-gray-400 mt-1">No new or changed clients for this referrer.</p>
@@ -88,29 +85,144 @@
 
     <!-- Sync Button -->
     <div class="flex justify-end pt-2">
-        <button id="btn-sync" onclick="executeSync()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            Sync Now
+        <button id="btn-sync" onclick="executeSync()" class="btn-success px-6">
+            <i class="fas fa-sync mr-1"></i>Sync Now
         </button>
     </div>
 </div>
 
 <!-- Sync Progress -->
-<div id="sync-progress" class="hidden bg-white rounded-xl shadow-sm border border-blue-100 p-4 mb-4">
+<div id="sync-progress" class="hidden fx-panel p-4 border-blue-100">
     <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium text-gray-700">Syncing...</span>
-        <span id="progress-text" class="text-sm font-mono text-blue-600">0 / 0</span>
+        <span class="text-sm font-semibold text-gray-700">Syncing...</span>
+        <span id="progress-text" class="text-sm font-mono text-green-600">0 / 0</span>
     </div>
-    <div class="w-full bg-gray-200 rounded-full h-2.5">
-        <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+    <div class="w-full bg-gray-100 rounded-full h-2">
+        <div id="progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
     </div>
 </div>
 
 <!-- Sync Done -->
-<div id="sync-done" class="hidden bg-green-50 rounded-xl border border-green-200 p-4 mb-4">
-    <p class="text-green-800 font-medium text-center"><i class="fas fa-check-circle mr-1"></i> Sync complete!</p>
+<div id="sync-done" class="hidden bg-green-50 rounded-lg border border-green-100 p-4">
+    <p class="text-green-700 font-medium text-center"><i class="fas fa-check-circle mr-1"></i> Sync complete!</p>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- NEW: Sync Local SQLite → API 2                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<hr class="my-8 border-gray-200">
+
+<!-- Step 1 -->
+<div class="step-card">
+    <h3 class="font-bold text-gray-800 mb-1">Local SQLite Data with API 2 Update</h3>
+    <p class="text-sm text-gray-400 mb-3">Push client data from a local SQLite snapshot to API 2. Select a referrer and snapshot to preview what will be added or updated. No changes until you click <strong>Sync Now</strong>.</p>
+    <div class="flex flex-wrap gap-3 items-end">
+        <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Referred by</label>
+            <select id="sqlite-referrer-select" class="fx-select min-w-[200px]">
+                <option value="">-- Select Referrer --</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Snapshot</label>
+            <select id="sqlite-snapshot-select" class="fx-select min-w-[200px]">
+                <option value="">-- Select Snapshot --</option>
+            </select>
+        </div>
+        <button id="btn-sqlite-preview" onclick="previewSqliteSync()" class="btn-primary">
+            <i class="fas fa-eye mr-1"></i>Preview Changes
+        </button>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="sqlite-sync-loading" class="hidden fx-panel p-8 text-center">
+    <i class="fas fa-spinner fa-spin text-green-500 text-2xl mb-3"></i>
+    <p class="text-gray-400">Comparing SQLite snapshot with API 2...</p>
+</div>
+
+<!-- Preview Results -->
+<div id="sqlite-preview-section" class="hidden space-y-4">
+
+    <!-- Summary -->
+    <div id="sqlite-preview-summary" class="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+        <span id="sqlite-summary-text" class="text-sm text-green-800 font-medium"></span>
+    </div>
+
+    <!-- NEW DATA -->
+    <div id="sqlite-new-data-section" class="fx-panel hidden">
+        <div class="fx-panel-header flex items-center gap-2">
+            <i class="fas fa-user-plus text-green-500"></i>
+            New Data <span id="sqlite-new-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
+        </div>
+        <div class="overflow-x-auto p-4">
+            <table class="fx-table">
+                <thead>
+                    <tr class="bg-green-50">
+                        <th>Account Id</th>
+                        <th>Student Name</th>
+                        <th>Mail Id</th>
+                        <th class="text-right">Deposit</th>
+                        <th class="text-right">Balance</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="sqlite-new-data-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- UPDATING DATA -->
+    <div id="sqlite-updating-data-section" class="fx-panel hidden">
+        <div class="fx-panel-header flex items-center gap-2">
+            <i class="fas fa-edit text-amber-500"></i>
+            Updating Data <span id="sqlite-updating-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
+        </div>
+        <div class="overflow-x-auto p-4">
+            <table class="fx-table">
+                <thead>
+                    <tr class="bg-amber-50">
+                        <th>Account Id</th>
+                        <th>Student Name</th>
+                        <th>Changes</th>
+                    </tr>
+                </thead>
+                <tbody id="sqlite-updating-data-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- NO CHANGES -->
+    <div id="sqlite-no-changes" class="hidden fx-panel p-8 text-center">
+        <i class="fas fa-check-circle text-green-500 text-3xl mb-3"></i>
+        <p class="text-gray-600 font-medium">Everything is up to date!</p>
+        <p class="text-sm text-gray-400 mt-1">No new or changed clients for this selection.</p>
+    </div>
+
+    <!-- Sync Button -->
+    <div class="flex justify-end pt-2">
+        <button id="btn-sqlite-sync" onclick="executeSqliteSync()" class="btn-success px-6">
+            <i class="fas fa-sync mr-1"></i>Sync Now
+        </button>
+    </div>
+</div>
+
+<!-- Sync Progress -->
+<div id="sqlite-sync-progress" class="hidden fx-panel p-4 border-blue-100">
+    <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-gray-700">Syncing SQLite → API 2...</span>
+        <span id="sqlite-progress-text" class="text-sm font-mono text-green-600">0 / 0</span>
+    </div>
+    <div class="w-full bg-gray-100 rounded-full h-2">
+        <div id="sqlite-progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+    </div>
+</div>
+
+<!-- Sync Done -->
+<div id="sqlite-sync-done" class="hidden bg-green-50 rounded-lg border border-green-100 p-4">
+    <p class="text-green-700 font-medium text-center"><i class="fas fa-check-circle mr-1"></i> SQLite → API 2 sync complete!</p>
+</div>
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/sync.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/sync.js') }}?v=12"></script>
 {% endblock %}

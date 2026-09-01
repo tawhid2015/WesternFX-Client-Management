@@ -38,15 +38,28 @@ document.addEventListener('DOMContentLoaded', loadReferrers);
 async function loadReferrers() {
     try {
         const data = await getJSON('/api/referrers');
-        const select = document.getElementById('sync-referrer-select');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Select Referrer --</option>';
-        (data || []).forEach(function(r) {
-            const opt = document.createElement('option');
-            opt.value = r;
-            opt.textContent = r;
-            select.appendChild(opt);
-        });
+        // Fill top section dropdown
+        const select1 = document.getElementById('sync-referrer-select');
+        if (select1) {
+            select1.innerHTML = '<option value="">-- Select Referrer --</option>';
+            (data || []).forEach(function(r) {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                select1.appendChild(opt);
+            });
+        }
+        // Fill bottom section dropdown (SQLite → API 2)
+        const select2 = document.getElementById('sqlite-referrer-select');
+        if (select2) {
+            select2.innerHTML = '<option value="">-- Select Referrer --</option>';
+            (data || []).forEach(function(r) {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                select2.appendChild(opt);
+            });
+        }
     } catch (e) {
         console.error('Failed to load referrers:', e);
     }
@@ -317,5 +330,294 @@ function onSyncComplete() {
     // Refresh preview after a moment
     setTimeout(function() {
         previewSync();
+    }, 1500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NEW: SQLite → API 2 Sync
+// ═══════════════════════════════════════════════════════════════
+
+let sqlitePreviewData = null;
+let sqlitePollInterval = null;
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', function() {
+    loadReferrers();
+    loadSnapshots();
+});
+
+async function loadSnapshots() {
+    try {
+        const data = await getJSON('/api/snapshots');
+        const select = document.getElementById('sqlite-snapshot-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Select Snapshot --</option>';
+        (data || []).forEach(function(s) {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = (s.month_label || s.week_label || 'Snapshot') + ' — ' + s.snapshot_date;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Failed to load snapshots:', e);
+    }
+}
+
+function _get(id) {
+    return document.getElementById(id);
+}
+
+function sqliteShowLoading(show) {
+    const el = _get('sqlite-sync-loading');
+    if (!el) return;
+    if (show) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+}
+
+function sqliteSetBtnState(btnId, loading, text) {
+    const btn = _get(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.innerHTML = loading ? '<i class="fas fa-spinner fa-spin mr-1"></i> ' + (text || 'Processing...') : text;
+}
+
+// ── Preview SQLite Sync ──
+async function previewSqliteSync() {
+    const referrerSelect = _get('sqlite-referrer-select');
+    const snapshotSelect = _get('sqlite-snapshot-select');
+    if (!referrerSelect || !snapshotSelect) return;
+    const referrer = referrerSelect.value;
+    const snapshotId = snapshotSelect.value;
+    if (!referrer) {
+        alert('Please select a referrer.');
+        return;
+    }
+    if (!snapshotId) {
+        alert('Please select a snapshot.');
+        return;
+    }
+
+    sqliteShowLoading(true);
+    sqliteSetBtnState('btn-sqlite-preview', true, 'Analyzing...');
+    _get('sqlite-preview-section').classList.add('hidden');
+    _get('sqlite-sync-done').classList.add('hidden');
+    sqliteHideProgress();
+
+    try {
+        const data = await postJSON('/api/sync-sqlite-to-api2', { referrer: referrer, snapshot_id: parseInt(snapshotId), dry_run: true });
+        sqlitePreviewData = data;
+        sqliteShowLoading(false);
+        sqliteSetBtnState('btn-sqlite-preview', false, '<i class="fas fa-eye mr-1"></i>Preview Changes');
+
+        if (!data.success) {
+            alert('Preview failed: ' + (data.error || 'Unknown error'));
+            return;
+        }
+
+        renderSqlitePreview(data);
+        _get('sqlite-preview-section').classList.remove('hidden');
+
+    } catch (e) {
+        sqliteShowLoading(false);
+        sqliteSetBtnState('btn-sqlite-preview', false, '<i class="fas fa-eye mr-1"></i>Preview Changes');
+        alert('Error: ' + e.message);
+    }
+}
+
+function renderSqlitePreview(data) {
+    const newClients = data.new_clients || [];
+    const changedClients = data.changed_clients || [];
+
+    // Summary line
+    const summaryText = _get('sqlite-summary-text');
+    if (newClients.length === 0 && changedClients.length === 0) {
+        summaryText.textContent = 'Everything is up to date for ' + (data.referrer || 'this referrer') + '.';
+    } else {
+        const parts = [];
+        if (newClients.length > 0) parts.push(newClients.length + ' new client' + (newClients.length > 1 ? 's' : ''));
+        if (changedClients.length > 0) parts.push(changedClients.length + ' update' + (changedClients.length > 1 ? 's' : ''));
+        summaryText.textContent = 'Found ' + parts.join(' and ') + ' for ' + (data.referrer || 'this referrer') + '.';
+    }
+
+    // NEW DATA
+    const newSection = _get('sqlite-new-data-section');
+    const newBody = _get('sqlite-new-data-body');
+    const newCount = _get('sqlite-new-count');
+    if (newClients.length > 0) {
+        newSection.classList.remove('hidden');
+        newCount.textContent = '(' + newClients.length + ')';
+        let html = '';
+        newClients.forEach(function(c) {
+            const activeInactive = _balanceToStatus(c.balance);
+            html += '<tr class="hover:bg-purple-50">';
+            html += '<td class="px-3 py-2 border-b font-mono text-gray-600">' + _esc(c.account) + '</td>';
+            html += '<td class="px-3 py-2 border-b text-gray-800 font-medium">' + _esc(c.fullName) + '</td>';
+            html += '<td class="px-3 py-2 border-b text-gray-600">' + _esc(c.email) + '</td>';
+            html += '<td class="px-3 py-2 border-b text-right text-gray-600">' + fmtCurrency(c.deposit).replace('$', '') + '</td>';
+            html += '<td class="px-3 py-2 border-b text-right text-gray-600">' + fmtCurrency(c.balance).replace('$', '') + '</td>';
+            html += '<td class="px-3 py-2 border-b text-center">' + _statusBadge(activeInactive) + '</td>';
+            html += '</tr>';
+        });
+        newBody.innerHTML = html;
+    } else {
+        newSection.classList.add('hidden');
+    }
+
+    // UPDATING DATA
+    const updatingSection = _get('sqlite-updating-data-section');
+    const updatingBody = _get('sqlite-updating-data-body');
+    const updatingCount = _get('sqlite-updating-count');
+    if (changedClients.length > 0) {
+        updatingSection.classList.remove('hidden');
+        updatingCount.textContent = '(' + changedClients.length + ')';
+        let html = '';
+        changedClients.forEach(function(c) {
+            const changes = c.field_changes || [];
+            let changesHtml = '';
+            changes.forEach(function(ch, idx) {
+                if (idx > 0) changesHtml += '<br>';
+                changesHtml += '<span class="text-xs text-gray-500">' + _esc(ch.field) + ':</span> ';
+                changesHtml += '<span class="text-xs text-red-600 line-through">' + _esc(String(ch.old !== undefined && ch.old !== '' ? ch.old : '—')) + '</span> ';
+                changesHtml += '<span class="text-xs text-gray-400">→</span> ';
+                changesHtml += '<span class="text-xs text-green-600 font-medium">' + _esc(String(ch.new !== undefined && ch.new !== '' ? ch.new : '—')) + '</span>';
+            });
+            html += '<tr class="hover:bg-yellow-50">';
+            html += '<td class="px-3 py-2 border-b font-mono text-gray-600">' + _esc(c.account) + '</td>';
+            html += '<td class="px-3 py-2 border-b text-gray-800">' + _esc(c.fullName) + '</td>';
+            html += '<td class="px-3 py-2 border-b text-gray-600">' + (changesHtml || '<span class="text-xs text-gray-400">No changes</span>') + '</td>';
+            html += '</tr>';
+        });
+        updatingBody.innerHTML = html;
+    } else {
+        updatingSection.classList.add('hidden');
+    }
+
+    // NO CHANGES
+    const noChanges = _get('sqlite-no-changes');
+    const btnSync = _get('btn-sqlite-sync');
+    if (newClients.length === 0 && changedClients.length === 0) {
+        noChanges.classList.remove('hidden');
+        btnSync.disabled = true;
+        btnSync.textContent = 'Up to Date';
+    } else {
+        noChanges.classList.add('hidden');
+        btnSync.disabled = false;
+        const total = newClients.length + changedClients.length;
+        btnSync.innerHTML = '<i class="fas fa-paper-plane mr-1"></i> Sync Now — ' + total + ' update' + (total > 1 ? 's' : '');
+    }
+}
+
+// ── Progress UI ──
+function sqliteShowProgress() {
+    const el = _get('sqlite-sync-progress');
+    if (el) el.classList.remove('hidden');
+}
+
+function sqliteHideProgress() {
+    const el = _get('sqlite-sync-progress');
+    if (el) el.classList.add('hidden');
+    if (sqlitePollInterval) {
+        clearInterval(sqlitePollInterval);
+        sqlitePollInterval = null;
+    }
+}
+
+function sqliteUpdateProgress(done, total) {
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const bar = _get('sqlite-progress-bar');
+    const text = _get('sqlite-progress-text');
+    if (bar) bar.style.width = pct + '%';
+    if (text) text.textContent = done + ' / ' + total;
+}
+
+// ── Execute SQLite Sync ──
+async function executeSqliteSync() {
+    if (!sqlitePreviewData || !sqlitePreviewData.referrer) return;
+
+    const newCount = (sqlitePreviewData.new_clients || []).length;
+    const changedCount = (sqlitePreviewData.changed_clients || []).length;
+    const totalCount = newCount + changedCount;
+
+    if (totalCount === 0) {
+        alert('Nothing to sync.');
+        return;
+    }
+
+    let msg = 'This will:';
+    if (newCount > 0) msg += '\n• Add ' + newCount + ' new client(s) to API 2';
+    if (changedCount > 0) msg += '\n• Update ' + changedCount + ' existing client(s) in API 2';
+    msg += '\n\nAre you sure?';
+
+    if (!confirm(msg)) return;
+
+    sqliteShowLoading(true);
+    sqliteSetBtnState('btn-sqlite-sync', true, 'Syncing...');
+    sqliteHideProgress();
+
+    try {
+        const data = await postJSON('/api/sync-sqlite-to-api2', {
+            referrer: sqlitePreviewData.referrer,
+            snapshot_id: sqlitePreviewData.snapshot_id,
+            dry_run: false
+        });
+        sqliteShowLoading(false);
+
+        if (!data.success) {
+            sqliteSetBtnState('btn-sqlite-sync', false, '<i class="fas fa-paper-plane mr-1"></i> Sync Now');
+            alert('Sync failed: ' + (data.error || 'Unknown error'));
+            return;
+        }
+
+        if (data.task_id) {
+            sqliteShowProgress();
+            sqliteUpdateProgress(0, data.total);
+            sqliteStartPolling(data.task_id);
+        } else {
+            sqliteSetBtnState('btn-sqlite-sync', false, '<i class="fas fa-paper-plane mr-1"></i> Sync Now');
+            onSqliteSyncComplete();
+        }
+
+    } catch (e) {
+        sqliteShowLoading(false);
+        sqliteSetBtnState('btn-sqlite-sync', false, '<i class="fas fa-paper-plane mr-1"></i> Sync Now');
+        sqliteHideProgress();
+        alert('Error: ' + e.message);
+    }
+}
+
+function sqliteStartPolling(taskId) {
+    if (sqlitePollInterval) clearInterval(sqlitePollInterval);
+
+    sqlitePollInterval = setInterval(async function() {
+        try {
+            const data = await getJSON('/api/sync-sqlite-to-api2/progress/' + taskId);
+            if (!data) return;
+
+            sqliteUpdateProgress(data.done || 0, data.total || 1);
+
+            if (data.status === 'done') {
+                clearInterval(sqlitePollInterval);
+                sqlitePollInterval = null;
+                sqliteHideProgress();
+                sqliteSetBtnState('btn-sqlite-sync', false, '<i class="fas fa-paper-plane mr-1"></i> Sync Now');
+                onSqliteSyncComplete();
+            } else if (data.status === 'error') {
+                clearInterval(sqlitePollInterval);
+                sqlitePollInterval = null;
+                sqliteHideProgress();
+                sqliteSetBtnState('btn-sqlite-sync', false, '<i class="fas fa-paper-plane mr-1"></i> Sync Now');
+                alert('Sync failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error('Poll error:', e);
+        }
+    }, 2000);
+}
+
+function onSqliteSyncComplete() {
+    _get('sqlite-sync-done').classList.remove('hidden');
+    // Refresh preview after a moment
+    setTimeout(function() {
+        previewSqliteSync();
     }, 1500);
 }

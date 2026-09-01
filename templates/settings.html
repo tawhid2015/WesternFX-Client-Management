@@ -2,84 +2,128 @@
 {% block title %}Settings — {{ app_name }}{% endblock %}
 {% block page_title %}Settings{% endblock %}
 {% block content %}
-<div class="max-w-3xl space-y-6">
+<div class="max-w-3xl space-y-5">
     <!-- API Configuration -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 class="text-lg font-semibold mb-4">API Configuration</h3>
-        <p class="text-sm text-gray-500 mb-6">Configure the Google Apps Script API URLs for each data source.</p>
+    <div class="fx-panel p-6">
+        <h3 class="font-bold text-gray-800 mb-1">API Configuration</h3>
+        <p class="text-sm text-gray-400 mb-6">Configure Google Apps Script API URLs for each data source.</p>
 
-        <div class="space-y-4">
+        <div class="space-y-5">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">API 1 — Old Data</label>
-                <input type="text" id="api1-url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
-                <button onclick="testApi('api1')" class="mt-2 btn-secondary text-sm">
-                    <i class="fas fa-vial mr-1"></i> Test Connection
-                </button>
-                <span id="api1-status" class="ml-2 text-sm"></span>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">API 1 — Old Data</label>
+                <input type="text" id="api1-url" class="fx-input w-full font-mono text-sm">
+                <div class="mt-2 flex items-center gap-2">
+                    <button onclick="testApi('api1')" class="btn-secondary btn-sm">
+                        <i class="fas fa-vial mr-1"></i>Test
+                    </button>
+                    <span id="api1-status" class="text-sm text-gray-400"></span>
+                </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">API 2 — Current Data</label>
-                <input type="text" id="api2-url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
-                <button onclick="testApi('api2')" class="mt-2 btn-secondary text-sm">
-                    <i class="fas fa-vial mr-1"></i> Test Connection
-                </button>
-                <span id="api2-status" class="ml-2 text-sm"></span>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">API 2 — Current Data</label>
+                <input type="text" id="api2-url" class="fx-input w-full font-mono text-sm">
+                <div class="mt-2 flex items-center gap-2">
+                    <button onclick="testApi('api2')" class="btn-secondary btn-sm">
+                        <i class="fas fa-vial mr-1"></i>Test
+                    </button>
+                    <span id="api2-status" class="text-sm text-gray-400"></span>
+                </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">API 3 — Update Data</label>
-                <input type="text" id="api3-url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
-                <button onclick="testApi('api3')" class="mt-2 btn-secondary text-sm">
-                    <i class="fas fa-vial mr-1"></i> Test Connection
-                </button>
-                <span id="api3-status" class="ml-2 text-sm"></span>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">API 3 — Update Data</label>
+                <input type="text" id="api3-url" class="fx-input w-full font-mono text-sm">
+                <div class="mt-2 flex items-center gap-2">
+                    <button onclick="testApi('api3')" class="btn-secondary btn-sm">
+                        <i class="fas fa-vial mr-1"></i>Test
+                    </button>
+                    <span id="api3-status" class="text-sm text-gray-400"></span>
+                </div>
             </div>
         </div>
 
         <div class="mt-6 flex gap-3">
             <button onclick="saveSettings()" class="btn-primary">
-                <i class="fas fa-save mr-2"></i>Save Settings
+                <i class="fas fa-save mr-1"></i>Save Settings
             </button>
             <button onclick="resetDefaults()" class="btn-secondary">
-                <i class="fas fa-undo mr-2"></i>Reset Defaults
+                <i class="fas fa-undo mr-1"></i>Reset
             </button>
         </div>
     </div>
 
-    <!-- Cloud Backup -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 class="text-lg font-semibold mb-4">Cloud Backup (Dropbox)</h3>
-        <p class="text-sm text-gray-500 mb-6">Back up your database to Dropbox. If you change hosting, restore your data with one click.</p>
+    <!-- Local Backup -->
+    <div class="fx-panel p-6">
+        <h3 class="font-bold text-gray-800 mb-1">Local Backup</h3>
+        <p class="text-sm text-gray-400 mb-6">Download a full SQL dump of the database for local storage.</p>
 
-        <div class="space-y-4">
+        <div class="space-y-5">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dropbox Access Token</label>
-                <input type="password" id="dropbox-token" placeholder="Paste your Dropbox token here..."
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
-                <p class="text-xs text-gray-400 mt-1">Get one from <a href="https://www.dropbox.com/developers/apps" target="_blank" class="text-blue-600">Dropbox App Console</a></p>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Select Month</label>
+                <select id="local-backup-month" class="fx-input w-full text-sm">
+                    <option value="">-- All Data --</option>
+                </select>
             </div>
-
-            <div class="flex gap-3">
-                <button onclick="saveDropboxToken()" class="btn-primary text-sm">
-                    <i class="fas fa-save mr-1"></i>Save Token
+            <div class="flex items-center gap-4">
+                <button onclick="downloadLocalBackup()" class="btn-primary">
+                    <i class="fas fa-download mr-1"></i>Download SQL Backup
                 </button>
-                <span id="token-status" class="text-sm self-center"></span>
+                <span id="local-backup-status" class="text-sm text-gray-400"></span>
             </div>
         </div>
 
         <hr class="my-6 border-gray-100">
 
-        <!-- Backup Actions -->
+        <h3 class="font-bold text-gray-800 mb-1">Direct Upload SQL Data</h3>
+        <p class="text-sm text-gray-400 mb-6">Restore the database from a previously saved SQL file.</p>
+
+        <div class="space-y-5">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Choose SQL File</label>
+                <input type="file" id="sql-upload-file" accept=".sql,.sqlite,.dump" class="fx-input w-full text-sm py-2">
+                <p class="text-xs text-amber-600 mt-1.5"><i class="fas fa-exclamation-triangle mr-1"></i>This will replace your current database. A backup of the current DB will be saved first.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="uploadSQLFile()" class="btn-warning">
+                    <i class="fas fa-upload mr-1"></i>Restore from SQL
+                </button>
+                <span id="sql-upload-status" class="text-sm text-gray-400"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloud Backup -->
+    <div class="fx-panel p-6">
+        <h3 class="font-bold text-gray-800 mb-1">Cloud Backup (Dropbox)</h3>
+        <p class="text-sm text-gray-400 mb-6">Back up your database to Dropbox for easy restore.</p>
+
+        <div class="space-y-5">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Dropbox Access Token</label>
+                <input type="password" id="dropbox-token" placeholder="Paste your Dropbox token here..." class="fx-input w-full font-mono text-sm">
+                <p class="text-xs text-gray-400 mt-1.5">Get one from <a href="https://www.dropbox.com/developers/apps" target="_blank" class="text-green-600 hover:underline font-medium">Dropbox App Console</a></p>
+            </div>
+
+            <div class="flex gap-3 items-center">
+                <button onclick="saveDropboxToken()" class="btn-primary btn-sm">
+                    <i class="fas fa-save mr-1"></i>Save Token
+                </button>
+                <span id="token-status" class="text-sm text-gray-400"></span>
+            </div>
+        </div>
+
+        <hr class="my-6 border-gray-100">
+
         <div class="space-y-4">
             <div class="flex items-center gap-4">
                 <button onclick="backupNow()" class="btn-success">
-                    <i class="fas fa-cloud-upload-alt mr-2"></i>Backup Now
+                    <i class="fas fa-cloud-upload-alt mr-1"></i>Backup Now
                 </button>
-                <span id="backup-status" class="text-sm text-gray-600"></span>
+                <span id="backup-status" class="text-sm text-gray-400"></span>
             </div>
 
-            <div id="last-backup-info" class="text-sm text-gray-500"></div>
+            <div id="last-backup-info" class="text-sm text-gray-400"></div>
 
             <div>
                 <h4 class="text-sm font-semibold text-gray-700 mb-2">Available Backups</h4>
@@ -92,5 +136,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=6"></script>
 {% endblock %}

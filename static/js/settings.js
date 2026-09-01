@@ -169,4 +169,87 @@ async function restoreBackup(filename) {
 }
 
 // Load on page ready
-document.addEventListener('DOMContentLoaded', loadSettings);
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettings();
+    loadLocalBackupMonths();
+});
+
+// ── Local Backup Functions ──
+
+async function loadLocalBackupMonths() {
+    const select = document.getElementById('local-backup-month');
+    if (!select) return;
+    try {
+        const result = await getJSON('/api/snapshots');
+        const months = [...new Set(result.map(s => s.month_label).filter(Boolean))].sort().reverse();
+        select.innerHTML = '<option value="">-- All Data (Full DB) --</option>';
+        months.forEach(function(m) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Failed to load months:', e);
+    }
+}
+
+async function downloadLocalBackup() {
+    const month = document.getElementById('local-backup-month').value;
+    const statusEl = document.getElementById('local-backup-status');
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing backup...';
+    try {
+        const params = month ? '?month=' + encodeURIComponent(month) : '';
+        const response = await fetch('/api/local-backup' + params);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = response.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || 'westernfx_backup.sql';
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        statusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Downloaded</span>';
+        showToast('SQL backup downloaded', 'success');
+    } catch (e) {
+        statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Backup failed: ' + e.message, 'error');
+    }
+}
+
+async function uploadSQLFile() {
+    const fileInput = document.getElementById('sql-upload-file');
+    const statusEl = document.getElementById('sql-upload-status');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        showToast('Please select a SQL file', 'warning');
+        return;
+    }
+    if (!confirm('WARNING: This will replace your entire database with the contents of this SQL file. The current database will be backed up locally first. Continue?')) {
+        return;
+    }
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('sql_file', file);
+        const response = await fetch('/api/restore-sql', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            statusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Restored</span>';
+            showToast('Database restored. Reloading app...', 'success');
+            setTimeout(function() { window.location.reload(); }, 2000);
+        } else {
+            statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + (result.error || 'Restore failed') + '</span>';
+            showToast('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+        }
+    } catch (e) {
+        statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Restore failed: ' + e.message, 'error');
+    }
+}
