@@ -82,6 +82,90 @@
         </div>
     </div>
 
+    <!-- Local SQLite → API 2 Sync -->
+    <div class="fx-panel p-6">
+        <h3 class="font-bold text-gray-800 mb-1"><i class="fas fa-database text-green-600 mr-2"></i>Local SQLite <i class="fas fa-arrow-right text-gray-400 mx-1 text-xs"></i> API 2 Sync</h3>
+        <p class="text-sm text-gray-400 mb-6">Push a saved snapshot from Local SQLite to API 2. Preview before applying.</p>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Select Snapshot</label>
+                    <select id="sqlite-snapshot-select" class="fx-input w-full text-sm">
+                        <option value="">-- Choose a saved snapshot --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Referrer</label>
+                    <select id="sqlite-referrer-select" class="fx-input w-full text-sm">
+                        <option value="">-- Select Referrer --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="previewSQLiteToApi2()" id="btn-sqlite-preview" class="btn-primary">
+                    <i class="fas fa-eye mr-1"></i>Preview Changes
+                </button>
+                <span id="sqlite-sync-status" class="text-sm text-gray-400"></span>
+            </div>
+
+            <!-- Preview Results -->
+            <div id="sqlite-preview-results" class="hidden space-y-5 mt-4">
+                <!-- New Clients -->
+                <div id="sqlite-preview-new-section" class="hidden">
+                    <h4 class="text-sm font-semibold text-green-700 mb-2"><i class="fas fa-plus-circle mr-1"></i>New Clients to Add (<span id="sqlite-preview-new-count">0</span>)</h4>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="fx-table text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Account</th>
+                                    <th class="px-3 py-2 text-left">Name</th>
+                                    <th class="px-3 py-2 text-left">Email</th>
+                                    <th class="px-3 py-2 text-right">Deposit</th>
+                                    <th class="px-3 py-2 text-right">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sqlite-preview-new-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Changed Clients -->
+                <div id="sqlite-preview-changed-section" class="hidden">
+                    <h4 class="text-sm font-semibold text-amber-700 mb-2"><i class="fas fa-edit mr-1"></i>Clients to Update (<span id="sqlite-preview-changed-count">0</span>)</h4>
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="fx-table text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Account</th>
+                                    <th class="px-3 py-2 text-left">Name</th>
+                                    <th class="px-3 py-2 text-left">Field</th>
+                                    <th class="px-3 py-2 text-right">Old Value</th>
+                                    <th class="px-3 py-2 text-right">New Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sqlite-preview-changed-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Apply Button -->
+                <div id="sqlite-apply-section" class="hidden pt-2">
+                    <button onclick="applySQLiteToApi2()" id="btn-sqlite-apply" class="btn-success">
+                        <i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2
+                    </button>
+                    <div id="sqlite-progress" class="hidden mt-3">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="sqlite-progress-bar" class="bg-green-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="sqlite-progress-text" class="text-xs text-gray-500 mt-1">Waiting...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Cloud Backup: Dropbox -->
     <div class="fx-panel p-6">
         <h3 class="font-bold text-gray-800 mb-1"><i class="fab fa-dropbox text-blue-500 mr-2"></i>Cloud Backup (Dropbox)</h3>
@@ -147,5 +231,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=9&t={{ range(1000000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=10&t={{ range(1000000) | random }}"></script>
 {% endblock %}

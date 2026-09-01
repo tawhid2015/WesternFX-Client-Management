@@ -234,10 +234,251 @@ async function restoreBackup(filename) {
     }
 }
 
+async function loadSQLiteSyncData() {
+    try {
+        // Load snapshots
+        const snaps = await getJSON('/api/snapshots');
+        const snapSelect = document.getElementById('sqlite-snapshot-select');
+        if (snapSelect) {
+            snapSelect.innerHTML = '<option value="">-- Choose a saved snapshot --</option>';
+            snaps.forEach(function(s) {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = (s.month_label || 'Snapshot') + ' — ' + (s.snapshot_date || '').slice(0, 10);
+                snapSelect.appendChild(opt);
+            });
+        }
+        // Load referrer options
+        const refSelect = document.getElementById('sqlite-referrer-select');
+        if (refSelect) {
+            refSelect.innerHTML = '<option value="">-- Select Referrer --</option>';
+            ['Tawhid Sir', 'Pradyut Sir'].forEach(function(r) {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                refSelect.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load SQLite sync data:', e);
+    }
+}
+
+let sqliteSyncPreviewData = null;
+let sqliteSyncTaskId = null;
+
+async function previewSQLiteToApi2() {
+    const snapshotId = document.getElementById('sqlite-snapshot-select').value;
+    const referrer = document.getElementById('sqlite-referrer-select').value;
+    const btn = document.getElementById('btn-sqlite-preview');
+    const status = document.getElementById('sqlite-sync-status');
+
+    if (!snapshotId || !referrer) {
+        showToast('Please select both a snapshot and a referrer', 'warning');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Analyzing...';
+    status.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Comparing SQLite vs API 2...';
+
+    try {
+        const result = await postJSON('/api/sync-sqlite-to-api2', {
+            snapshot_id: parseInt(snapshotId),
+            referrer: referrer,
+            dry_run: true
+        });
+
+        sqliteSyncPreviewData = result;
+
+        if (!result.success) {
+            status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + (result.error || 'Failed') + '</span>';
+            showToast(result.error || 'Preview failed', 'error');
+            return;
+        }
+
+        // Show results container
+        document.getElementById('sqlite-preview-results').classList.remove('hidden');
+
+        // New clients
+        const newClients = result.new_clients || [];
+        const newSection = document.getElementById('sqlite-preview-new-section');
+        const newBody = document.getElementById('sqlite-preview-new-body');
+        document.getElementById('sqlite-preview-new-count').textContent = newClients.length;
+
+        if (newClients.length > 0) {
+            newSection.classList.remove('hidden');
+            let html = '';
+            newClients.forEach(function(c) {
+                html += '<tr>';
+                html += '<td class="px-3 py-2 font-mono text-xs">' + (c.account || '') + '</td>';
+                html += '<td class="px-3 py-2">' + (c.fullName || '') + '</td>';
+                html += '<td class="px-3 py-2 text-gray-500">' + (c.email || '') + '</td>';
+                html += '<td class="px-3 py-2 text-right">' + (c.deposit !== null && c.deposit !== undefined ? c.deposit : '') + '</td>';
+                html += '<td class="px-3 py-2 text-right">' + (c.balance !== null && c.balance !== undefined ? c.balance : '') + '</td>';
+                html += '</tr>';
+            });
+            newBody.innerHTML = html;
+        } else {
+            newSection.classList.add('hidden');
+        }
+
+        // Changed clients
+        const changedClients = result.changed_clients || [];
+        const changedSection = document.getElementById('sqlite-preview-changed-section');
+        const changedBody = document.getElementById('sqlite-preview-changed-body');
+        document.getElementById('sqlite-preview-changed-count').textContent = changedClients.length;
+
+        if (changedClients.length > 0) {
+            changedSection.classList.remove('hidden');
+            let html = '';
+            changedClients.forEach(function(c) {
+                const changes = c.field_changes || [];
+                changes.forEach(function(fc, idx) {
+                    html += '<tr class="' + (idx === 0 ? '' : 'border-t border-gray-100') + '">';
+                    if (idx === 0) {
+                        html += '<td class="px-3 py-2 font-mono text-xs" rowspan="' + changes.length + '">' + (c.account || '') + '</td>';
+                        html += '<td class="px-3 py-2" rowspan="' + changes.length + '">' + (c.fullName || '') + '</td>';
+                    }
+                    html += '<td class="px-3 py-2 text-amber-700">' + (fc.field || '') + '</td>';
+                    html += '<td class="px-3 py-2 text-right text-gray-500">' + (fc.old !== null && fc.old !== undefined ? fc.old : '—') + '</td>';
+                    html += '<td class="px-3 py-2 text-right text-green-700 font-medium">' + (fc.new !== null && fc.new !== undefined ? fc.new : '—') + '</td>';
+                    html += '</tr>';
+                });
+            });
+            changedBody.innerHTML = html;
+        } else {
+            changedSection.classList.add('hidden');
+        }
+
+        // Show apply button if there are changes
+        const applySection = document.getElementById('sqlite-apply-section');
+        if (newClients.length > 0 || changedClients.length > 0) {
+            applySection.classList.remove('hidden');
+            status.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> ' + newClients.length + ' new, ' + changedClients.length + ' to update</span>';
+        } else {
+            applySection.classList.add('hidden');
+            status.innerHTML = '<span class="text-blue-600"><i class="fas fa-info-circle mr-1"></i> No changes detected — everything is up to date</span>';
+        }
+
+    } catch (e) {
+        status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-eye mr-1"></i>Preview Changes';
+    }
+}
+
+async function applySQLiteToApi2() {
+    const snapshotId = document.getElementById('sqlite-snapshot-select').value;
+    const referrer = document.getElementById('sqlite-referrer-select').value;
+    const btn = document.getElementById('btn-sqlite-apply');
+    const progress = document.getElementById('sqlite-progress');
+    const bar = document.getElementById('sqlite-progress-bar');
+    const text = document.getElementById('sqlite-progress-text');
+    const status = document.getElementById('sqlite-sync-status');
+
+    if (!snapshotId || !referrer) {
+        showToast('Please select both a snapshot and a referrer', 'warning');
+        return;
+    }
+
+    if (!confirm('This will push ' + (sqliteSyncPreviewData?.new_count || 0) + ' new clients and update ' + (sqliteSyncPreviewData?.changed_count || 0) + ' existing clients in API 2. Continue?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Applying...';
+    progress.classList.remove('hidden');
+    bar.style.width = '0%';
+    text.textContent = 'Starting sync...';
+
+    try {
+        const result = await postJSON('/api/sync-sqlite-to-api2', {
+            snapshot_id: parseInt(snapshotId),
+            referrer: referrer,
+            dry_run: false
+        });
+
+        if (!result.success) {
+            status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + (result.error || 'Failed') + '</span>';
+            showToast(result.error || 'Sync failed', 'error');
+            return;
+        }
+
+        sqliteSyncTaskId = result.task_id;
+        text.textContent = 'Sync started (' + result.total + ' operations)...';
+
+        // Poll progress
+        pollSQLiteSyncProgress(result.task_id, result.total);
+
+    } catch (e) {
+        status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+    }
+}
+
+async function pollSQLiteSyncProgress(taskId, total) {
+    const bar = document.getElementById('sqlite-progress-bar');
+    const text = document.getElementById('sqlite-progress-text');
+    const status = document.getElementById('sqlite-sync-status');
+    const btn = document.getElementById('btn-sqlite-apply');
+
+    let completed = false;
+    let attempts = 0;
+    const maxAttempts = 300; // 5 minutes at 1s intervals
+
+    while (!completed && attempts < maxAttempts) {
+        attempts++;
+        try {
+            const result = await getJSON('/api/sync-sqlite-to-api2/progress/' + taskId);
+            if (result.success) {
+                const done = result.done || 0;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                bar.style.width = pct + '%';
+                text.textContent = done + ' / ' + total + ' completed';
+
+                if (result.status === 'done') {
+                    completed = true;
+                    status.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Sync complete!</span>';
+                    showToast('SQLite → API 2 sync completed successfully', 'success');
+                    btn.innerHTML = '<i class="fas fa-check mr-1"></i>Done';
+                    setTimeout(function() {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+                        document.getElementById('sqlite-apply-section').classList.add('hidden');
+                    }, 3000);
+                } else if (result.status === 'error') {
+                    completed = true;
+                    status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> Sync failed: ' + (result.error || 'Unknown error') + '</span>';
+                    showToast('Sync failed: ' + (result.error || ''), 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+                }
+            }
+        } catch (e) {
+            console.error('Progress poll error:', e);
+        }
+        if (!completed) {
+            await new Promise(function(r) { setTimeout(r, 1000); });
+        }
+    }
+
+    if (!completed) {
+        status.innerHTML = '<span class="text-amber-600"><i class="fas fa-exclamation-triangle mr-1"></i> Sync timed out. Check API 2 manually.</span>';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+    }
+}
+
 // Load on page ready
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     loadLocalBackupMonths();
+    loadSQLiteSyncData();
 });
 
 // ── Local Backup Functions ──
