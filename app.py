@@ -35,6 +35,12 @@ import threading
 import time
 import uuid
 
+# Dropbox OAuth imports
+try:
+    from dropbox_oauth import get_auth_url, exchange_code, test_connection, disconnect as disconnect_dropbox
+except ImportError:
+    get_auth_url = exchange_code = test_connection = disconnect_dropbox = None
+
 # ── Global sync task tracker ───────────────────────────────
 # {task_id: {"status": "running|done|error", "total": N, "done": N, "results": [...], "error": str}}
 sync_tasks = {}
@@ -1157,6 +1163,55 @@ def api_restore_sql():
 
 
 # ── Cloud Backup APIs ────────────────────────────────────
+
+@app.route("/api/dropbox-auth-url", methods=["GET"])
+def api_dropbox_auth_url():
+    """Get Dropbox OAuth authorization URL."""
+    if get_auth_url is None:
+        return jsonify({"success": False, "error": "Dropbox OAuth module not loaded"}), 500
+    try:
+        url = get_auth_url()
+        return jsonify({"success": True, "auth_url": url})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/dropbox-auth-exchange", methods=["POST"])
+def api_dropbox_auth_exchange():
+    """Exchange Dropbox authorization code for tokens."""
+    if exchange_code is None:
+        return jsonify({"success": False, "error": "Dropbox OAuth module not loaded"}), 500
+    data = request.get_json() or {}
+    auth_code = data.get("code")
+    if not auth_code:
+        return jsonify({"success": False, "error": "No authorization code provided"}), 400
+    try:
+        result = exchange_code(auth_code)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/dropbox-status", methods=["GET"])
+def api_dropbox_status():
+    """Check Dropbox OAuth connection status."""
+    if test_connection is None:
+        return jsonify({"success": True, "connected": False, "error": "Module not loaded"})
+    result = test_connection()
+    return jsonify(result)
+
+
+@app.route("/api/dropbox-disconnect", methods=["POST"])
+def api_dropbox_disconnect():
+    """Disconnect Dropbox OAuth."""
+    if disconnect_dropbox is None:
+        return jsonify({"success": False, "error": "Module not loaded"}), 500
+    try:
+        result = disconnect_dropbox()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/api/backup-now", methods=["POST"])
 def api_backup_now():

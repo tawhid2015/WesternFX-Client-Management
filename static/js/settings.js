@@ -1,4 +1,4 @@
-/* WesternFX IB Management — Settings Page (v2: with Cloud Backup) */
+/* WesternFX IB Management — Settings Page */
 
 const DEFAULT_URLS = {
     api1: 'https://script.google.com/macros/s/AKfycbx2m-4xxpU3HiXl43tTvCti0wiUkclWiQkVG-hlL841xhjsYkRsSjHq_bY2eAvjZWxf/exec',
@@ -13,9 +13,8 @@ async function loadSettings() {
     document.getElementById('api1-url').value = settingsData.api1_url || DEFAULT_URLS.api1;
     document.getElementById('api2-url').value = settingsData.api2_url || DEFAULT_URLS.api2;
     document.getElementById('api3-url').value = settingsData.api3_url || DEFAULT_URLS.api3;
-    document.getElementById('dropbox-token').value = settingsData.dropbox_token || '';
     loadBackupStatus();
-    loadBackupsList();
+    loadDropboxStatus();
 }
 
 async function saveSettings() {
@@ -32,30 +31,6 @@ async function saveSettings() {
             showToast('Failed to save settings', 'error');
         }
     } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function saveDropboxToken() {
-    const token = document.getElementById('dropbox-token').value.trim();
-    if (!token) {
-        showToast('Please paste a Dropbox token', 'warning');
-        return;
-    }
-    try {
-        const result = await postJSON('/api/settings', { dropbox_token: token });
-        const statusEl = document.getElementById('token-status');
-        if (result.success) {
-            statusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Token saved</span>';
-            showToast('Dropbox token saved', 'success');
-            loadBackupStatus();
-            loadBackupsList();
-        } else {
-            statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> Save failed</span>';
-            showToast('Failed to save token', 'error');
-        }
-    } catch (e) {
-        document.getElementById('token-status').innerHTML = '<span class="text-red-600">' + e.message + '</span>';
         showToast('Error: ' + e.message, 'error');
     }
 }
@@ -79,6 +54,100 @@ async function testApi(apiKey) {
         }
     } catch (e) {
         statusEl.innerHTML = `<span class="text-red-600"><i class="fas fa-times-circle"></i> ${e.message}</span>`;
+    }
+}
+
+// ── Dropbox OAuth Functions ──
+
+async function loadDropboxStatus() {
+    try {
+        const result = await getJSON('/api/dropbox-status');
+        const nameEl = document.getElementById('dropbox-user-name');
+        const emailEl = document.getElementById('dropbox-user-email');
+        const actionsEl = document.getElementById('dropbox-connect-actions');
+        const authSection = document.getElementById('dropbox-auth-code-section');
+        const actionsSection = document.getElementById('dropbox-actions-section');
+
+        if (result.success && result.connected) {
+            nameEl.textContent = result.name || 'Connected';
+            emailEl.textContent = result.email || '';
+            actionsEl.innerHTML = '<span class="text-green-600 text-sm font-medium"><i class="fas fa-check-circle mr-1"></i> Connected</span>';
+            authSection.classList.add('hidden');
+            actionsSection.classList.remove('hidden');
+        } else {
+            nameEl.textContent = 'Not connected';
+            emailEl.textContent = result.error || 'Click Connect to authorize';
+            actionsEl.innerHTML = '<button onclick="connectDropbox()" class="btn-primary btn-sm"><i class="fab fa-dropbox mr-1"></i>Connect Dropbox</button>';
+            authSection.classList.add('hidden');
+            actionsSection.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Failed to load Dropbox status:', e);
+    }
+}
+
+async function connectDropbox() {
+    const authSection = document.getElementById('dropbox-auth-code-section');
+    const linkEl = document.getElementById('dropbox-auth-link');
+    const statusEl = document.getElementById('dropbox-auth-status');
+
+    statusEl.textContent = 'Generating authorization link...';
+    authSection.classList.remove('hidden');
+
+    try {
+        const result = await getJSON('/api/dropbox-auth-url');
+        if (result.success && result.auth_url) {
+            linkEl.href = result.auth_url;
+            linkEl.textContent = result.auth_url;
+            statusEl.innerHTML = '<span class="text-blue-600"><i class="fas fa-external-link-alt mr-1"></i> Open the link in a new tab, authorize, then paste the code</span>';
+        } else {
+            statusEl.innerHTML = '<span class="text-red-600">Failed: ' + (result.error || '') + '</span>';
+        }
+    } catch (e) {
+        statusEl.innerHTML = '<span class="text-red-600">' + e.message + '</span>';
+    }
+}
+
+async function submitDropboxAuthCode() {
+    const code = document.getElementById('dropbox-auth-code').value.trim();
+    const statusEl = document.getElementById('dropbox-auth-status');
+
+    if (!code) {
+        showToast('Please paste the authorization code', 'warning');
+        return;
+    }
+
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Exchanging code...';
+
+    try {
+        const result = await postJSON('/api/dropbox-auth-exchange', { code: code });
+        if (result.success) {
+            showToast('Dropbox connected!', 'success');
+            loadDropboxStatus();
+        } else {
+            statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + (result.error || 'Failed') + '</span>';
+            showToast('Connection failed: ' + (result.error || ''), 'error');
+        }
+    } catch (e) {
+        statusEl.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function disconnectDropbox() {
+    if (!confirm('Disconnect Dropbox? You will need to re-authorize to back up again.')) {
+        return;
+    }
+    try {
+        const result = await postJSON('/api/dropbox-disconnect', {});
+        if (result.success) {
+            showToast('Dropbox disconnected', 'info');
+            loadDropboxStatus();
+        } else {
+            showToast('Disconnect failed: ' + (result.error || ''), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
     }
 }
 
@@ -206,7 +275,7 @@ async function downloadLocalBackup() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const filename = response.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || 'westernfx_backup.sql';
+        const filename = response.headers.get('content-disposition')?.match(/filename="(.+)"/)[1] || 'westernfx_backup.sql';
         a.download = filename;
         document.body.appendChild(a);
         a.click();

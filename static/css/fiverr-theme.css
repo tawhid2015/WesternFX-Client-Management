@@ -293,6 +293,14 @@ p { color: var(--fx-text); }
 .btn-warning:hover { background: #e6992f; }
 .btn-warning:active { transform: translateY(1px); }
 
+.btn-drive {
+  background: #4285F4;
+  color: #fff;
+}
+
+.btn-drive:hover { background: #3367d6; }
+.btn-drive:active { transform: translateY(1px); }
+
 /* Small buttons */
 .btn-sm { padding: 6px 14px; font-size: 13px; }
 

@@ -16,8 +16,14 @@ def _lazy_import():
             pass
 
 def _get_token():
-    import database as db
-    return db.get_setting('dropbox_token', '')
+    """Get a valid access token via OAuth (auto-refresh)."""
+    try:
+        from dropbox_oauth import get_access_token
+        return get_access_token()
+    except Exception:
+        # Fallback to old static token
+        import database as db
+        return db.get_setting('dropbox_token', '')
 
 def _get_dbx():
     _lazy_import()
@@ -46,7 +52,7 @@ def backup(upload=True, keep_last=30):
     """Back up the SQLite DB to Dropbox. Returns {success, message, filename}."""
     dbx = _get_dbx()
     if dbx is None:
-        return {'success': False, 'message': 'Dropbox not configured. Enter token in Settings.'}
+        return {'success': False, 'message': 'Dropbox not configured. Connect in Settings.'}
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(base_dir, 'data', 'westernfx.db')
@@ -100,6 +106,7 @@ def backup(upload=True, keep_last=30):
             index = index[:keep_last]
         _save_backup_index(index)
 
+        import database as db
         db.set_setting('last_backup', datetime.now().isoformat())
         return {'success': True, 'message': f'Backup uploaded: {filename}', 'filename': filename}
     except DbxException as e:
@@ -111,7 +118,7 @@ def list_backups():
     """Return list of backups from Dropbox directly (syncs local index)."""
     dbx = _get_dbx()
     if dbx is None:
-        return {'success': False, 'message': 'Dropbox not configured.'}
+        return {'success': False, 'message': 'Dropbox not configured. Connect in Settings.'}
     try:
         res = dbx.files_list_folder('/westernfx/backups')
         backups = []
@@ -147,7 +154,7 @@ def restore(filename=None):
     """Restore DB from Dropbox. Returns {success, message}."""
     dbx = _get_dbx()
     if dbx is None:
-        return {'success': False, 'message': 'Dropbox not configured. Enter token in Settings.'}
+        return {'success': False, 'message': 'Dropbox not configured. Connect in Settings.'}
 
     if filename is None:
         filename = _get_latest_filename()
@@ -178,26 +185,32 @@ def restore(filename=None):
 
 def get_status():
     """Return backup status."""
-    import database as db
-    token = db.get_setting('dropbox_token', '')
-    if not token:
-        return {'success': True, 'configured': False, 'message': 'Dropbox token not set.'}
-
-    dbx = _get_dbx()
-    if dbx is None:
-        return {'success': True, 'configured': True, 'message': 'Dropbox SDK not installed.'}
-
-    # test token validity by calling account info (different scope)
     try:
-        dbx.users_get_current_account()
-        connected = True
+        from dropbox_oauth import test_connection
+        result = test_connection()
+        configured = True
+        connected = result.get('connected', False)
+        error = result.get('error', '')
     except Exception:
+        # Fallback to old static token check
+        import database as db
+        token = db.get_setting('dropbox_token', '')
+        if not token:
+            return {'success': True, 'configured': False, 'message': 'Dropbox not connected. Click Connect in Settings.'}
+        configured = True
         connected = False
+        error = "Old token mode"
 
-    last = db.get_setting('last_backup')
+    last = None
+    try:
+        import database as db
+        last = db.get_setting('last_backup')
+    except Exception:
+        pass
+
     return {
         'success': True,
-        'configured': True,
+        'configured': configured,
         'connected': connected,
         'last_backup': last,
         'message': f"Last backup: {last or 'Never'}"
