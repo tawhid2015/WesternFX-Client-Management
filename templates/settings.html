@@ -82,92 +82,6 @@
         </div>
     </div>
 
-    <!-- Sync API 2 — Local SQLite Data with API 2 Update -->
-    <div class="fx-panel p-6">
-        <h3 class="font-bold text-gray-800 mb-1"><i class="fas fa-sync-alt text-green-600 mr-2"></i>Sync API 2</h3>
-        <p class="text-sm text-gray-400 mb-1">Local SQLite Data with API 2 Update</p>
-        <p class="text-xs text-gray-500 mb-4">Preview changes before syncing. New clients get added, existing matching clients get updated, and unchanged records are shown for confirmation.</p>
-
-        <div class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Select Snapshot</label>
-                    <select id="sqlite-snapshot-select" class="fx-input w-full text-sm">
-                        <option value="">-- Choose a saved snapshot --</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Referrer</label>
-                    <select id="sqlite-referrer-select" class="fx-input w-full text-sm">
-                        <option value="">-- Select Referrer --</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button onclick="previewSQLiteToApi2()" id="btn-sqlite-preview" class="btn-primary">
-                    <i class="fas fa-eye mr-1"></i>Preview Changes
-                </button>
-                <span id="sqlite-sync-status" class="text-sm text-gray-400"></span>
-            </div>
-
-            <!-- Preview Results -->
-            <div id="sqlite-preview-results" class="hidden space-y-4 mt-4">
-                <!-- Summary -->
-                <div id="sqlite-summary" class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                    <p class="font-medium text-gray-700 mb-2">Summary</p>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="text-center">
-                            <p class="text-lg font-bold text-green-600" id="sqlite-summary-new">0</p>
-                            <p class="text-xs text-gray-500">New Data</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-lg font-bold text-amber-600" id="sqlite-summary-update">0</p>
-                            <p class="text-xs text-gray-500">Updating Data</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-lg font-bold text-gray-500" id="sqlite-summary-unchanged">0</p>
-                            <p class="text-xs text-gray-500">Unchanged Data</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- New Data -->
-                <div id="sqlite-preview-new-section" class="hidden">
-                    <h4 class="text-sm font-semibold text-green-700 mb-2"><i class="fas fa-plus-circle mr-1"></i>New Data (<span id="sqlite-preview-new-count">0</span>)</h4>
-                    <div id="sqlite-preview-new-body" class="space-y-2"></div>
-                </div>
-
-                <!-- Updating Data -->
-                <div id="sqlite-preview-changed-section" class="hidden">
-                    <h4 class="text-sm font-semibold text-amber-700 mb-2"><i class="fas fa-edit mr-1"></i>Updating Data (<span id="sqlite-preview-changed-count">0</span>)</h4>
-                    <div id="sqlite-preview-changed-body" class="space-y-3"></div>
-                </div>
-
-                <!-- Unchanged Data -->
-                <div id="sqlite-preview-unchanged-section" class="hidden">
-                    <h4 class="text-sm font-semibold text-gray-500 mb-2"><i class="fas fa-check-circle mr-1"></i>Unchanged Data (<span id="sqlite-preview-unchanged-count">0</span>)</h4>
-                    <div id="sqlite-preview-unchanged-body" class="flex flex-wrap gap-2"></div>
-                </div>
-
-                <!-- Sync Now Button -->
-                <div id="sqlite-apply-section" class="hidden pt-2">
-                    <button onclick="applySQLiteToApi2()" id="btn-sqlite-apply" class="btn-success">
-                        <i class="fas fa-cloud-upload-alt mr-1"></i>Sync Now
-                    </button>
-                </div>
-            </div>
-
-            <!-- Progress -->
-            <div id="sqlite-progress" class="hidden mt-3">
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="sqlite-progress-bar" class="bg-green-600 h-2.5 rounded-full" style="width: 0%"></div>
-                </div>
-                <p id="sqlite-progress-text" class="text-xs text-gray-500 mt-1">Waiting...</p>
-            </div>
-        </div>
-    </div>
-
     <!-- Cloud Backup: Dropbox -->
     <div class="fx-panel p-6">
         <h3 class="font-bold text-gray-800 mb-1"><i class="fab fa-dropbox text-blue-500 mr-2"></i>Cloud Backup (Dropbox)</h3>
@@ -233,5 +147,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=11&t={{ range(1000000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=9&t={{ range(1000000) | random }}"></script>
 {% endblock %}

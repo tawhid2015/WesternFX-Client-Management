@@ -120,6 +120,13 @@ def api3_read(base_url):
     return {"success": False, "error": "Unexpected response format"}
 
 
+def api3_clear(base_url):
+    """Clear all data rows from API 3 (keeps headers)."""
+    params = {"action": "clear", "path": API_SHEET_NAME}
+    url = _build_url(base_url, params)
+    return _safe_get(url)
+
+
 def api3_add(base_url, account_data):
     """Add a new account record to API 3.
     Required: account (as string).

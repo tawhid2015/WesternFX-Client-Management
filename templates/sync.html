@@ -108,119 +108,41 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- NEW: Sync Local SQLite → API 2                          -->
+<!-- NEW: Snapshot → API 3 Sync                              -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <hr class="my-8 border-gray-200">
 
 <!-- Step 1 -->
 <div class="step-card">
-    <h3 class="font-bold text-gray-800 mb-1">Local SQLite Data with API 2 Update</h3>
-    <p class="text-sm text-gray-400 mb-3">Push client data from a local SQLite snapshot to API 2. Select a referrer and snapshot to preview what will be added or updated. No changes until you click <strong>Sync Now</strong>.</p>
+    <h3 class="font-bold text-gray-800 mb-1">Snapshot → API 3</h3>
+    <p class="text-sm text-gray-400 mb-3">Replace API 3 data with all clients from a selected snapshot. This updates matching accounts and adds new ones.</p>
     <div class="flex flex-wrap gap-3 items-end">
         <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Referred by</label>
-            <select id="sqlite-referrer-select" class="fx-select min-w-[200px]">
-                <option value="">-- Select Referrer --</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Snapshot</label>
-            <select id="sqlite-snapshot-select" class="fx-select min-w-[200px]">
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Select Snapshot</label>
+            <select id="snap3-snapshot-select" class="fx-select min-w-[200px]">
                 <option value="">-- Select Snapshot --</option>
             </select>
         </div>
-        <button id="btn-sqlite-preview" onclick="previewSqliteSync()" class="btn-primary">
-            <i class="fas fa-eye mr-1"></i>Preview Changes
-        </button>
-    </div>
-</div>
-
-<!-- Loading -->
-<div id="sqlite-sync-loading" class="hidden fx-panel p-8 text-center">
-    <i class="fas fa-spinner fa-spin text-green-500 text-2xl mb-3"></i>
-    <p class="text-gray-400">Comparing SQLite snapshot with API 2...</p>
-</div>
-
-<!-- Preview Results -->
-<div id="sqlite-preview-section" class="hidden space-y-4">
-
-    <!-- Summary -->
-    <div id="sqlite-preview-summary" class="bg-green-50 rounded-lg p-3 text-center border border-green-100">
-        <span id="sqlite-summary-text" class="text-sm text-green-800 font-medium"></span>
-    </div>
-
-    <!-- NEW DATA -->
-    <div id="sqlite-new-data-section" class="fx-panel hidden">
-        <div class="fx-panel-header flex items-center gap-2">
-            <i class="fas fa-user-plus text-green-500"></i>
-            New Data <span id="sqlite-new-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
-        </div>
-        <div class="overflow-x-auto p-4">
-            <table class="fx-table">
-                <thead>
-                    <tr class="bg-green-50">
-                        <th>Account Id</th>
-                        <th>Student Name</th>
-                        <th>Mail Id</th>
-                        <th class="text-right">Deposit</th>
-                        <th class="text-right">Balance</th>
-                        <th class="text-center">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="sqlite-new-data-body"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- UPDATING DATA -->
-    <div id="sqlite-updating-data-section" class="fx-panel hidden">
-        <div class="fx-panel-header flex items-center gap-2">
-            <i class="fas fa-edit text-amber-500"></i>
-            Updating Data <span id="sqlite-updating-count" class="text-sm font-normal text-gray-400 ml-1">(0)</span>
-        </div>
-        <div class="overflow-x-auto p-4">
-            <table class="fx-table">
-                <thead>
-                    <tr class="bg-amber-50">
-                        <th>Account Id</th>
-                        <th>Student Name</th>
-                        <th>Changes</th>
-                    </tr>
-                </thead>
-                <tbody id="sqlite-updating-data-body"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- NO CHANGES -->
-    <div id="sqlite-no-changes" class="hidden fx-panel p-8 text-center">
-        <i class="fas fa-check-circle text-green-500 text-3xl mb-3"></i>
-        <p class="text-gray-600 font-medium">Everything is up to date!</p>
-        <p class="text-sm text-gray-400 mt-1">No new or changed clients for this selection.</p>
-    </div>
-
-    <!-- Sync Button -->
-    <div class="flex justify-end pt-2">
-        <button id="btn-sqlite-sync" onclick="executeSqliteSync()" class="btn-success px-6">
-            <i class="fas fa-sync mr-1"></i>Sync Now
+        <button id="btn-snap3-preview" onclick="previewSnapshotToApi3()" class="btn-primary">
+            <i class="fas fa-eye mr-1"></i>Update Data
         </button>
     </div>
 </div>
 
 <!-- Sync Progress -->
-<div id="sqlite-sync-progress" class="hidden fx-panel p-4 border-blue-100">
+<div id="snapshot-api3-progress" class="hidden fx-panel p-4 border-blue-100">
     <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-semibold text-gray-700">Syncing SQLite → API 2...</span>
-        <span id="sqlite-progress-text" class="text-sm font-mono text-green-600">0 / 0</span>
+        <span class="text-sm font-semibold text-gray-700">Syncing Snapshot → API 3...</span>
+        <span id="snap3-progress-text" class="text-sm font-mono text-green-600">0 / 0</span>
     </div>
     <div class="w-full bg-gray-100 rounded-full h-2">
-        <div id="sqlite-progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+        <div id="snap3-progress-bar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
     </div>
 </div>
 
 <!-- Sync Done -->
-<div id="sqlite-sync-done" class="hidden bg-green-50 rounded-lg border border-green-100 p-4">
-    <p class="text-green-700 font-medium text-center"><i class="fas fa-check-circle mr-1"></i> SQLite → API 2 sync complete!</p>
+<div id="snapshot-api3-done" class="hidden bg-green-50 rounded-lg border border-green-100 p-4">
+    <p class="text-green-700 font-medium text-center"><i class="fas fa-check-circle mr-1"></i> Snapshot → API 3 sync complete!</p>
 </div>
 {% endblock %}
 {% block extra_js %}
