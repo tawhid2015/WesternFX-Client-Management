@@ -300,8 +300,16 @@ async function previewSQLiteToApi2() {
         // Show results container
         document.getElementById('sqlite-preview-results').classList.remove('hidden');
 
-        // New clients
         const newClients = result.new_clients || [];
+        const changedClients = result.changed_clients || [];
+        const unchangedClients = result.unchanged_clients || [];
+
+        // Update summary
+        document.getElementById('sqlite-summary-new').textContent = newClients.length;
+        document.getElementById('sqlite-summary-update').textContent = changedClients.length;
+        document.getElementById('sqlite-summary-unchanged').textContent = unchangedClients.length;
+
+        // New Data section — card layout
         const newSection = document.getElementById('sqlite-preview-new-section');
         const newBody = document.getElementById('sqlite-preview-new-body');
         document.getElementById('sqlite-preview-new-count').textContent = newClients.length;
@@ -310,21 +318,24 @@ async function previewSQLiteToApi2() {
             newSection.classList.remove('hidden');
             let html = '';
             newClients.forEach(function(c) {
-                html += '<tr>';
-                html += '<td class="px-3 py-2 font-mono text-xs">' + (c.account || '') + '</td>';
-                html += '<td class="px-3 py-2">' + (c.fullName || '') + '</td>';
-                html += '<td class="px-3 py-2 text-gray-500">' + (c.email || '') + '</td>';
-                html += '<td class="px-3 py-2 text-right">' + (c.deposit !== null && c.deposit !== undefined ? c.deposit : '') + '</td>';
-                html += '<td class="px-3 py-2 text-right">' + (c.balance !== null && c.balance !== undefined ? c.balance : '') + '</td>';
-                html += '</tr>';
+                html += '<div class="border border-green-200 rounded-lg p-3 bg-green-50">';
+                html += '<div class="flex items-center justify-between mb-1">';
+                html += '<span class="font-semibold text-sm">' + (c.fullName || 'Unknown') + '</span>';
+                html += '<span class="text-xs font-mono text-gray-500">' + (c.account || '') + '</span>';
+                html += '</div>';
+                html += '<div class="text-xs text-gray-600 space-y-0.5">';
+                html += '<div>Email: ' + (c.email || '—') + '</div>';
+                html += '<div>Deposit: ' + (c.deposit !== null && c.deposit !== undefined ? c.deposit : '—') + ' &nbsp;|&nbsp; Balance: ' + (c.balance !== null && c.balance !== undefined ? c.balance : '—') + '</div>';
+                html += '</div>';
+                html += '</div>';
             });
             newBody.innerHTML = html;
         } else {
             newSection.classList.add('hidden');
+            newBody.innerHTML = '';
         }
 
-        // Changed clients
-        const changedClients = result.changed_clients || [];
+        // Updating Data section — per-client field change cards
         const changedSection = document.getElementById('sqlite-preview-changed-section');
         const changedBody = document.getElementById('sqlite-preview-changed-body');
         document.getElementById('sqlite-preview-changed-count').textContent = changedClients.length;
@@ -334,28 +345,56 @@ async function previewSQLiteToApi2() {
             let html = '';
             changedClients.forEach(function(c) {
                 const changes = c.field_changes || [];
-                changes.forEach(function(fc, idx) {
-                    html += '<tr class="' + (idx === 0 ? '' : 'border-t border-gray-100') + '">';
-                    if (idx === 0) {
-                        html += '<td class="px-3 py-2 font-mono text-xs" rowspan="' + changes.length + '">' + (c.account || '') + '</td>';
-                        html += '<td class="px-3 py-2" rowspan="' + changes.length + '">' + (c.fullName || '') + '</td>';
-                    }
-                    html += '<td class="px-3 py-2 text-amber-700">' + (fc.field || '') + '</td>';
-                    html += '<td class="px-3 py-2 text-right text-gray-500">' + (fc.old !== null && fc.old !== undefined ? fc.old : '—') + '</td>';
-                    html += '<td class="px-3 py-2 text-right text-green-700 font-medium">' + (fc.new !== null && fc.new !== undefined ? fc.new : '—') + '</td>';
-                    html += '</tr>';
+                html += '<div class="border border-amber-200 rounded-lg p-3 bg-amber-50">';
+                html += '<div class="flex items-center justify-between mb-2">';
+                html += '<span class="font-semibold text-sm">' + (c.fullName || 'Unknown') + '</span>';
+                html += '<span class="text-xs font-mono text-gray-500">' + (c.account || '') + '</span>';
+                html += '</div>';
+                html += '<div class="space-y-1">';
+                changes.forEach(function(fc) {
+                    const note = fc.note ? ' <span class="text-xs text-gray-400">(' + fc.note + ')</span>' : '';
+                    html += '<div class="text-xs flex items-center gap-2">';
+                    html += '<span class="font-medium text-amber-700 w-24">' + (fc.field || '') + ':</span>';
+                    html += '<span class="text-gray-500 line-through">' + (fc.old !== null && fc.old !== undefined ? fc.old : '—') + '</span>';
+                    html += '<i class="fas fa-arrow-right text-gray-400 text-xs"></i>';
+                    html += '<span class="text-green-700 font-medium">' + (fc.new !== null && fc.new !== undefined ? fc.new : '—') + '</span>';
+                    html += note;
+                    html += '</div>';
                 });
+                html += '</div>';
+                html += '</div>';
             });
             changedBody.innerHTML = html;
         } else {
             changedSection.classList.add('hidden');
+            changedBody.innerHTML = '';
         }
 
-        // Show apply button if there are changes
+        // Unchanged Data section — compact tags
+        const unchangedSection = document.getElementById('sqlite-preview-unchanged-section');
+        const unchangedBody = document.getElementById('sqlite-preview-unchanged-body');
+        document.getElementById('sqlite-preview-unchanged-count').textContent = unchangedClients.length;
+
+        if (unchangedClients.length > 0) {
+            unchangedSection.classList.remove('hidden');
+            let html = '';
+            unchangedClients.forEach(function(c) {
+                html += '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600 border border-gray-200">';
+                html += '<span class="font-medium">' + (c.fullName || 'Unknown') + '</span>';
+                html += '<span class="font-mono text-gray-400 ml-1">' + (c.account || '') + '</span>';
+                html += '</span>';
+            });
+            unchangedBody.innerHTML = html;
+        } else {
+            unchangedSection.classList.add('hidden');
+            unchangedBody.innerHTML = '';
+        }
+
+        // Show/hide Sync Now button
         const applySection = document.getElementById('sqlite-apply-section');
         if (newClients.length > 0 || changedClients.length > 0) {
             applySection.classList.remove('hidden');
-            status.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> ' + newClients.length + ' new, ' + changedClients.length + ' to update</span>';
+            status.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> ' + newClients.length + ' new, ' + changedClients.length + ' to update, ' + unchangedClients.length + ' unchanged</span>';
         } else {
             applySection.classList.add('hidden');
             status.innerHTML = '<span class="text-blue-600"><i class="fas fa-info-circle mr-1"></i> No changes detected — everything is up to date</span>';
@@ -389,7 +428,7 @@ async function applySQLiteToApi2() {
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Applying...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Syncing...';
     progress.classList.remove('hidden');
     bar.style.width = '0%';
     text.textContent = 'Starting sync...';
@@ -417,7 +456,7 @@ async function applySQLiteToApi2() {
         status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> ' + e.message + '</span>';
         showToast('Error: ' + e.message, 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Sync Now';
     }
 }
 
@@ -448,7 +487,7 @@ async function pollSQLiteSyncProgress(taskId, total) {
                     btn.innerHTML = '<i class="fas fa-check mr-1"></i>Done';
                     setTimeout(function() {
                         btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+                        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Sync Now';
                         document.getElementById('sqlite-apply-section').classList.add('hidden');
                     }, 3000);
                 } else if (result.status === 'error') {
@@ -456,7 +495,7 @@ async function pollSQLiteSyncProgress(taskId, total) {
                     status.innerHTML = '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> Sync failed: ' + (result.error || 'Unknown error') + '</span>';
                     showToast('Sync failed: ' + (result.error || ''), 'error');
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+                    btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Sync Now';
                 }
             }
         } catch (e) {
@@ -470,7 +509,7 @@ async function pollSQLiteSyncProgress(taskId, total) {
     if (!completed) {
         status.innerHTML = '<span class="text-amber-600"><i class="fas fa-exclamation-triangle mr-1"></i> Sync timed out. Check API 2 manually.</span>';
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Apply Changes to API 2';
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i>Sync Now';
     }
 }
 
