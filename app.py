@@ -1,6 +1,6 @@
 """
-WesternFX IB Management Tool — Flask Application (v2: Monthly + Cloud Backup)
-==============================================================================
+WesternFX IB Management Tool — Flask Application (v2: Monthly + Cloud Backup + Auth)
+=================================================================================
 Main application entry point.
 """
 import csv
@@ -10,7 +10,7 @@ import os
 import shutil
 from datetime import datetime
 
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response, session, make_response
 
 from config import (
     DATABASE_PATH,
@@ -34,6 +34,21 @@ from cloud_backup import backup, restore, list_backups, get_status
 import threading
 import time
 import uuid
+
+# Password protection
+from auth import (
+    check_password,
+    authenticate_request,
+    generate_session_token,
+    SESSION_KEY,
+    get_client_ip,
+    is_ip_whitelisted,
+    whitelist_ip,
+    remove_whitelisted_ip,
+    get_all_whitelisted_ips,
+    change_password,
+    DEFAULT_PASSWORD,
+)
 
 # Dropbox OAuth imports
 try:
@@ -266,7 +281,42 @@ def _run_sqlite_to_api2_sync_task(task_id, api2_url, sqlite_clients, api2_by_acc
 from analytics import detect_status, compute_snapshot_stats, compare_snapshots
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+
+# Use a stable secret key derived from env var, fallback to random
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+if isinstance(app.secret_key, str):
+    app.secret_key = app.secret_key.encode()
+
+# ── Authentication ────────────────────────────────────────
+# Routes that are EXEMPT from auth checks
+_AUTH_EXEMPT_ROUTES = {
+    "api_auth_check",
+    "api_auth_login",
+    "api_auth_logout",
+    "static",
+}
+
+def _requires_auth():
+    """Check if the current endpoint requires authentication."""
+    # Static files are always exempt
+    if request.endpoint == "static":
+        return False
+    return request.endpoint not in _AUTH_EXEMPT_ROUTES
+
+@app.before_request
+def auth_before_request():
+    """Intercept all requests and require auth except exempt routes."""
+    if not _requires_auth():
+        return None  # No auth needed
+    is_authed, client_ip = authenticate_request(request, session)
+    if not is_authed:
+        # For API routes, return JSON unauthorized
+        if request.path.startswith("/api/"):
+            return jsonify({"success": False, "error": "Unauthorized", "needs_auth": True}), 401
+        # For page routes, allow HTML to load — the auth overlay blocks access
+        return None
+    return None
+
 
 # ── Disable caching for development ───────────────────────
 @app.after_request
@@ -316,6 +366,82 @@ def inject_globals():
         "app_name": "WesternFX IB Management",
         "current_year": datetime.utcnow().year,
     }
+
+
+# ── Auth Routes (EXEMPT from auth check) ──────────────────
+
+@app.route("/api/auth-check", methods=["GET", "POST"])
+def api_auth_check():
+    """Check if current session/IP is authenticated."""
+    is_authed, client_ip = authenticate_request(request, session)
+    return jsonify({
+        "success": True,
+        "authenticated": is_authed,
+        "ip": client_ip,
+    })
+
+
+@app.route("/api/auth-login", methods=["POST"])
+def api_auth_login():
+    """Submit password for authentication."""
+    data = request.get_json() or {}
+    password = data.get("password", "")
+    
+    if not password:
+        return jsonify({"success": False, "error": "Password required"}), 400
+    
+    if check_password(password):
+        # Create session token
+        session[SESSION_KEY] = generate_session_token()
+        # Whitelist the IP
+        client_ip = get_client_ip(request)
+        whitelist_ip(client_ip)
+        return jsonify({"success": True, "message": "Authenticated", "ip": client_ip})
+    else:
+        return jsonify({"success": False, "error": "Incorrect password"}), 401
+
+
+@app.route("/api/auth-logout", methods=["POST"])
+def api_auth_logout():
+    """Logout — clear session and remove IP whitelist."""
+    client_ip = get_client_ip(request)
+    remove_whitelisted_ip(client_ip)
+    session.pop(SESSION_KEY, None)
+    return jsonify({"success": True, "message": "Logged out"})
+
+
+@app.route("/api/auth-change-password", methods=["POST"])
+def api_auth_change_password():
+    """Change the authentication password."""
+    data = request.get_json() or {}
+    current = data.get("current_password", "")
+    new_pass = data.get("new_password", "")
+    
+    if not current or not new_pass:
+        return jsonify({"success": False, "error": "Both current and new password required"}), 400
+    
+    if not check_password(current):
+        return jsonify({"success": False, "error": "Current password is incorrect"}), 401
+    
+    if len(new_pass) < 6:
+        return jsonify({"success": False, "error": "Password must be at least 6 characters"}), 400
+    
+    change_password(new_pass)
+    return jsonify({"success": True, "message": "Password changed successfully"})
+
+
+@app.route("/api/auth-whitelist", methods=["GET"])
+def api_auth_whitelist():
+    """Get all whitelisted IPs."""
+    ips = get_all_whitelisted_ips()
+    return jsonify({"success": True, "ips": ips})
+
+
+@app.route("/api/auth-whitelist/<ip>", methods=["DELETE"])
+def api_auth_remove_ip(ip):
+    """Remove an IP from the whitelist."""
+    remove_whitelisted_ip(ip)
+    return jsonify({"success": True, "message": f"Removed {ip}"})
 
 
 # ── Routes ────────────────────────────────────────────────
@@ -1306,6 +1432,7 @@ def api_parse_html():
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 
 @app.route("/api/save-html-snapshot", methods=["POST"])

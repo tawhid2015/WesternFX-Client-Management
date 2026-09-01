@@ -73,8 +73,12 @@
             </nav>
 
             <!-- Footer -->
-            <div class="p-4 border-t border-gray-200">
-                <p class="text-xs text-gray-400">v2.6 — Fiverr Design</p>
+            <div class="p-4 border-t border-gray-200 flex items-center justify-between">
+                <p class="text-xs text-gray-400">v3.0 — Tawhid</p>
+                <button onclick="logout()" class="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
             </div>
         </div>
     </aside>
@@ -105,6 +109,53 @@
 
     <!-- Toast -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+
+    <!-- Auth Overlay -->
+    <div id="auth-overlay" style="display:none; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center;">
+        <div style="position:absolute; inset:0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);"></div>
+        <div style="position:relative; z-index:1; width:100%; max-width:400px; padding:24px;">
+            <div style="text-align:center; margin-bottom:32px;">
+                <h1 style="font-size:28px; font-weight:800; color:#ffffff; letter-spacing:-0.5px; margin-bottom:4px;">
+                    WesternFX<span style="color:#1dbf73;">.</span>
+                </h1>
+                <p style="font-size:11px; color:#94a3b8; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;">
+                    IB Management
+                </p>
+            </div>
+            <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:28px; backdrop-filter:blur(8px);">
+                <p style="font-size:14px; color:#cbd5e1; text-align:center; margin-bottom:20px;">
+                    This page is protected. Enter the password to continue.
+                </p>
+                <div style="position:relative; margin-bottom:16px;">
+                    <i class="fas fa-key" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#64748b; font-size:14px;"></i>
+                    <input
+                        id="auth-password"
+                        type="password"
+                        placeholder="Password"
+                        autocomplete="current-password"
+                        style="width:100%; padding:12px 14px 12px 40px; border:1px solid rgba(255,255,255,0.12); border-radius:6px; background:rgba(255,255,255,0.05); color:#f1f5f9; font-size:14px; outline:none; transition:border-color 0.15s;"
+                        onfocus="this.style.borderColor='rgba(29,191,115,0.5)'; this.style.boxShadow='0 0 0 3px rgba(29,191,115,0.12)'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.12)'; this.style.boxShadow='none'"
+                    >
+                </div>
+                <button
+                    id="auth-submit"
+                    style="width:100%; padding:12px; border:none; border-radius:6px; background:#1dbf73; color:#fff; font-size:15px; font-weight:700; cursor:pointer; transition:background 0.12s; display:flex; align-items:center; justify-content:center; gap:8px;"
+                    onmouseover="this.style.background='#19a463'"
+                    onmouseout="this.style.background='#1dbf73'"
+                    onmousedown="this.style.transform='translateY(1px)'"
+                    onmouseup="this.style.transform='translateY(0)'"
+                >
+                    <i class="fas fa-unlock"></i>
+                    Unlock
+                </button>
+                <div id="auth-error" style="display:none; margin-top:14px; padding:10px 12px; background:rgba(255,64,64,0.12); border:1px solid rgba(255,64,64,0.2); border-radius:6px; color:#fca5a5; font-size:13px; text-align:center;"></div>
+            </div>
+            <p style="text-align:center; margin-top:20px; font-size:12px; color:#64748b;">
+                IP access is logged for security.
+            </p>
+        </div>
+    </div>
 
     <script>
         function toggleSidebar() {
@@ -177,6 +228,7 @@
         function initReferrerSelector() {}
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v=3&t={{ range(1000000) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}?v=1&t={{ range(1000000) | random }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

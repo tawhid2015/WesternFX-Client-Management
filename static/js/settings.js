@@ -1,7 +1,6 @@
 /* WesternFX IB Management — Settings Page */
 
 const DEFAULT_URLS = {
-    api1: 'https://script.google.com/macros/s/AKfycbx2m-4xxpU3HiXl43tTvCti0wiUkclWiQkVG-hlL841xhjsYkRsSjHq_bY2eAvjZWxf/exec',
     api2: 'https://script.google.com/macros/s/AKfycbxqYd0QanVEgAPNj5S4M6vQAtPavFEvhcsa6d_hgx6ip1-tZdLswLPgll17qeiqfuAx/exec',
     api3: 'https://script.google.com/macros/s/AKfycbx3av5WhEMS0MQVXXKxIdk3g6PcETmDw-Ty_sJYm3dstHD6hi2-_X_6J04O8EvQ5xw/exec'
 };
@@ -10,7 +9,6 @@ let settingsData = {};
 
 async function loadSettings() {
     settingsData = await getJSON('/api/settings');
-    document.getElementById('api1-url').value = settingsData.api1_url || DEFAULT_URLS.api1;
     document.getElementById('api2-url').value = settingsData.api2_url || DEFAULT_URLS.api2;
     document.getElementById('api3-url').value = settingsData.api3_url || DEFAULT_URLS.api3;
     loadBackupStatus();
@@ -19,7 +17,6 @@ async function loadSettings() {
 
 async function saveSettings() {
     const payload = {
-        api1_url: document.getElementById('api1-url').value.trim(),
         api2_url: document.getElementById('api2-url').value.trim(),
         api3_url: document.getElementById('api3-url').value.trim()
     };
@@ -36,7 +33,6 @@ async function saveSettings() {
 }
 
 function resetDefaults() {
-    document.getElementById('api1-url').value = DEFAULT_URLS.api1;
     document.getElementById('api2-url').value = DEFAULT_URLS.api2;
     document.getElementById('api3-url').value = DEFAULT_URLS.api3;
     showToast('Defaults restored. Click Save to apply.', 'info');

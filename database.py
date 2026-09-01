@@ -59,6 +59,12 @@ CREATE TABLE IF NOT EXISTS client_history (
     total_snapshots          INTEGER DEFAULT 0
 );
 
+-- Whitelisted IP addresses (authorized devices)
+CREATE TABLE IF NOT EXISTS auth_ips (
+    ip TEXT PRIMARY KEY,
+    authorized_at TEXT NOT NULL
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_client_records_snapshot ON client_records(snapshot_id);
 CREATE INDEX IF NOT EXISTS idx_client_records_account  ON client_records(account);

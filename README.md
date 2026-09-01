@@ -1,24 +1,25 @@
 # WesternFX IB Client Management Tool
 
-A Flask-based web application for managing Introducing Broker (IB) client data from WesternFX partnership. Provides monthly snapshot tracking, dashboard analytics, cloud backup via Dropbox, and HTML upload parsing.
+A Flask-based web application for managing Introducing Broker (IB) client data from WesternFX partnership. Provides monthly snapshot tracking, dashboard analytics, password protection, cloud backup via Dropbox, and HTML upload parsing.
 
-**Version:** 2.4  
-**Tech Stack:** Python 3, Flask, SQLite, Tailwind CSS, Chart.js, Dropbox API
+**Version:** 3.0 — Tawhid
+**Tech Stack:** Python 3, Flask, SQLite, Tailwind CSS, Chart.js, Dropbox OAuth 2.0
 
 ---
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [Architecture](#architecture)
-3. [Database Schema](#database-schema)
-4. [API Endpoints](#api-endpoints)
-5. [Key Features](#key-features)
-6. [File Structure](#file-structure)
-7. [Common Issues & Fixes](#common-issues--fixes)
-8. [Dropbox Setup](#dropbox-setup)
-9. [Dashboard Rules](#dashboard-rules)
-10. [Development Notes](#development-notes)
+2. [Configuration Guide](#configuration-guide)
+3. [Architecture](#architecture)
+4. [Database Schema](#database-schema)
+5. [API Endpoints](#api-endpoints)
+6. [Key Features](#key-features)
+7. [File Structure](#file-structure)
+8. [Common Issues & Fixes](#common-issues--fixes)
+9. [Dropbox Setup](#dropbox-setup)
+10. [Dashboard Rules](#dashboard-rules)
+11. [Development Notes](#development-notes)
 
 ---
 
@@ -32,7 +33,101 @@ pip install -r requirements.txt  # or pip install flask dropbox requests
 python app.py
 ```
 
-App runs on `http://0.0.0.0:5000`. For production, set `debug=False` in `app.py` (line ~793).
+App runs on `http://0.0.0.0:5000`. For production, set `debug=False` in `app.py`.
+
+---
+
+## Configuration Guide
+
+### Password Protection / Authentication Settings
+
+**File:** `auth.py`
+
+This file handles all password protection and authentication logic:
+- **Password hashing:** PBKDF2 with SHA-256 and salt
+- **Default password:** `Tawhid+Pradyut` — change this after first login via the Settings page
+- **IP whitelisting:** Automatically saves your device's IP after first successful login
+- **Session tokens:** Flask session-based auth tokens
+
+**To change the password:**
+1. Log in to the app
+2. Go to **Settings**
+3. Use the "Change Password" form
+
+**Database table:** `auth_ips` stores whitelisted IP addresses.
+
+---
+
+### API 2 Configuration
+
+**File:** `config.py`
+
+```python
+DEFAULT_API_URLS = {
+    "api2": "YOUR_API2_GOOGLE_APPS_SCRIPT_URL_HERE",
+    "api3": "YOUR_API3_GOOGLE_APPS_SCRIPT_URL_HERE",
+}
+```
+
+**Field in app:** Stored in SQLite `settings` table under key `api2_url`.
+
+**How to update:**
+- **Settings page:** Paste your API 2 Google Apps Script URL → Save
+- **Direct DB:** Update `settings` table key `api2_url`
+- **Environment variable:** Not currently used (all stored in DB)
+
+---
+
+### API 3 Configuration
+
+**File:** `config.py`
+
+Same file as API 2. API 3 is the data source for monthly snapshots.
+
+**Field in app:** Stored in SQLite `settings` table under key `api3_url`.
+
+**How to update:**
+- **Settings page:** Paste your API 3 Google Apps Script URL → Save
+- **Direct DB:** Update `settings` table key `api3_url`
+
+---
+
+### Dropbox OAuth Configuration
+
+**File:** `dropbox_oauth.py`
+
+Handles the full Dropbox OAuth 2.0 flow with automatic token refresh.
+
+**Credentials file (local dev):** `data/dropbox_oauth_credentials.json`
+```json
+{
+  "app_key": "your_app_key",
+  "app_secret": "your_app_secret",
+  "redirect_uri": "http://localhost:5000"
+}
+```
+
+**Environment variables (Railway/production):**
+- `DROPBOX_APP_KEY` — Your Dropbox app key
+- `DROPBOX_APP_SECRET` — Your Dropbox app secret
+- `DROPBOX_REDIRECT_URI` — e.g., `https://your-app.up.railway.app`
+
+**Token storage:** SQLite `settings` table, key `dropbox_oauth_token` (JSON blob with access_token, refresh_token, account_id, expires_in).
+
+---
+
+### Sensitive Token / Key File Paths
+
+| File | Purpose | Sensitivity |
+|------|---------|-------------|
+| `data/westernfx.db` | SQLite database — contains all client data, snapshots, settings | **HIGH** — backup regularly |
+| `data/dropbox_oauth_credentials.json` | Dropbox app credentials (key + secret) | **HIGH** — never commit to public repos |
+| `data/dropbox_oauth_token.json` | Dropbox OAuth tokens (legacy, now stored in DB) | **MEDIUM** — may be stale |
+| `data/google_oauth_credentials.json` | **REMOVED** in v3.0 | N/A |
+| `data/google_drive_credentials.json` | **REMOVED** in v3.0 | N/A |
+| `data/google_oauth_token.json` | **REMOVED** in v3.0 | N/A |
+
+**Important:** The `data/` directory is excluded from Git via `.gitignore` to prevent accidental commits of sensitive data.
 
 ---
 
@@ -51,6 +146,17 @@ Flask app with these route categories:
 | `/filters` | Advanced client filters |
 | `/analytics` | Custom date range analytics |
 | `/settings` | API URLs + Dropbox token + backup controls |
+
+### Auth Endpoints (new in v3.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth-check` | POST | Check if current session/IP is authenticated |
+| `/api/auth-login` | POST | Submit password, create session, whitelist IP |
+| `/api/auth-logout` | POST | Clear session, remove IP whitelist |
+| `/api/auth-change-password` | POST | Change the auth password |
+| `/api/auth-whitelist` | GET | List all whitelisted IPs |
+| `/api/auth-whitelist/<ip>` | DELETE | Remove an IP from whitelist |
 
 ### API Endpoints (`/api/*`)
 
@@ -123,6 +229,13 @@ new_value TEXT
 change_date TEXT
 ```
 
+### `auth_ips` (new in v3.0)
+```sql
+ip TEXT PRIMARY KEY
+authorized_at TEXT
+```
+Stores whitelisted IP addresses for automatic access.
+
 ### `settings`
 ```sql
 key TEXT PRIMARY KEY
@@ -130,8 +243,9 @@ value TEXT
 ```
 
 **Important settings keys:**
-- `api1_url`, `api2_url`, `api3_url` — Google Apps Script endpoints
-- `dropbox_token` — OAuth access token (short-lived, ~4 hours)
+- `api2_url`, `api3_url` — Google Apps Script endpoints
+- `dropbox_oauth_token` — JSON blob with access_token, refresh_token, account_id (OAuth 2.0)
+- `auth_password_hash` — PBKDF2 hash of the login password
 - `backup_index` — JSON array of backup metadata
 - `last_backup` — ISO datetime of last successful backup
 
@@ -139,7 +253,16 @@ value TEXT
 
 ## Key Features
 
-### 1. Update Monthly (was "Update Weekly")
+### 1. Password Protection (new in v3.0)
+- Full-page overlay login screen on every page
+- No redirects — pages load normally, overlay covers them
+- PBKDF2-hashed password with salt (default: `Tawhid+Pradyut`)
+- IP whitelisting: auto-save device IP after first login
+- Session token for browser session persistence
+- Logout button in sidebar footer
+- All API endpoints return 401 for unauthorized requests
+
+### 2. Update Monthly (was "Update Weekly")
 Fetches live data from API 3 and saves as a new monthly snapshot. Computes client status by comparing with previous snapshot.
 
 **Status detection rules (computed live, not stored):**
@@ -148,24 +271,25 @@ Fetches live data from API 3 and saves as a new monthly snapshot. Computes clien
 - `balance > deposit` → **PROFITABLE**
 - `deposit > 0 AND balance ≤ 0` → **BLOWN** (shown in separate section)
 
-### 2. HTML Upload Parser
+### 3. HTML Upload Parser
 Upload a saved WesternFX "My Traders" HTML page. The parser extracts trader rows from Angular `mat-row` elements, deduplicates by `account_number`, and saves as a monthly snapshot.
 
 **Deduplication:** The HTML may render duplicate rows due to virtual scrolling. The parser keeps the first occurrence of each `account_number` and skips subsequent duplicates.
 
-### 3. Dashboard v2.4
+### 4. Dashboard v3.0
 - **KPI Cards:** Total, Active, Inactive, Profitable, Total Deposit, Profitable Client Profit, Commission, Commission Total, Zero Deposit count
 - **Profitable Clients List:** Names + profit breakdown in Highlights panel
 - **Problem: Negative Balance:** Clients with `balance < 0` shown in Highlights
 - **Account Blown Table:** Clients with `deposit > 0` and `balance ≤ 0`
 - **Charts:** Status Distribution (doughnut), Client Growth (line), Financial Trends (bar), PnL Distribution (doughnut), Deposit Distribution (doughnut)
 
-### 4. Cloud Backup (Dropbox)
+### 5. Cloud Backup (Dropbox OAuth 2.0)
 - **Backup Now:** Uploads `data/westernfx.db` to Dropbox `/westernfx/backups/`
 - **Restore:** Downloads a backup and replaces local DB (creates `.backup.YYYYMMDD_HHMMSS` copy first)
-- **Live Sync:** `/api/backups` queries Dropbox directly (not cached) so deleted files disappear immediately
+- **OAuth 2.0:** Full authorization flow with refresh-token support — "set it and forget it"
+- **Token persistence:** Stored in SQLite DB (not ephemeral JSON files) — works on Railway
 
-### 5. Delete Monthly Snapshot
+### 6. Delete Monthly Snapshot
 From Update Monthly page, select a snapshot from dropdown and click Delete. Cascades delete all `client_records` and `client_history` linked to that snapshot.
 
 **Known bug:** Returns `{"success": true}` even for non-existent IDs. Check should be added.
@@ -176,30 +300,34 @@ From Update Monthly page, select a snapshot from dropdown and click Delete. Casc
 
 ```
 westernfx-ib-tool/
-├── app.py                  # Flask routes + API endpoints
-├── database.py             # All SQLite operations
-├── cloud_backup.py         # Dropbox upload/download/list
+├── app.py                  # Flask routes + API endpoints + auth middleware
+├── auth.py                 # Password protection: hashing, IP whitelist, sessions
+├── database.py             # All SQLite operations + schema
+├── cloud_backup.py         # Dropbox backup/restore with OAuth token refresh
+├── dropbox_oauth.py       # Dropbox OAuth 2.0 flow (PKCE, refresh tokens)
 ├── html_parser.py          # WesternFX HTML → trader data
 ├── analytics.py            # Dashboard stats computation
 ├── api_client.py           # Google Apps Script API client
-├── config.py               # Constants + default URLs
+├── config.py               # Constants + default API URLs
 ├── requirements.txt        # Python dependencies
 ├── data/
-│   └── westernfx.db        # SQLite database
+│   └── westernfx.db        # SQLite database (excluded from git)
+│   └── dropbox_oauth_credentials.json  # Dropbox app credentials (local dev only)
 ├── templates/
-│   ├── base.html           # Layout with sidebar, nav, cache meta tags
+│   ├── base.html           # Layout with sidebar, nav, auth overlay, logout button
 │   ├── dashboard.html      # KPI cards + chart canvases + blown section
 │   ├── update.html         # Fetch API 3 + HTML upload + delete snapshot
-│   ├── settings.html       # API URLs + Dropbox token + backup controls
+│   ├── settings.html       # API URLs + Dropbox OAuth + backup controls
 │   ├── client_profile.html # Individual client view
 │   ├── clients.html        # Client list
 │   ├── filters.html        # Advanced filters
 │   ├── sync.html           # API 2 sync workflow
 │   └── analytics.html      # Custom date range analytics
 └── static/js/
-    ├── dashboard.js        # Chart rendering + KPI population (v8)
+    ├── auth.js             # Auth overlay: check, login, logout, shake animation
+    ├── dashboard.js        # Chart rendering + KPI population
     ├── update.js           # Fetch/save snapshot + HTML upload + delete
-    ├── settings.js         # Save URLs/token + backup/restore (v3)
+    ├── settings.js         # Save URLs + Dropbox OAuth + backup/restore
     ├── client_profile.js   # Client detail view
     ├── clients.js          # Client list + filters
     ├── sync.js             # API 2 sync detection
@@ -225,17 +353,20 @@ westernfx-ib-tool/
 **Cause:** `list_backups()` used a local cached index stored in SQLite `settings` table.  
 **Fix:** Rewrote `list_backups()` to query Dropbox `files_list_folder('/westernfx/backups')` live every time.
 
-### Issue: Dropbox token expired
+### Issue: Dropbox token expired (OAuth 2.0)
 **Error:** `AuthError('expired_access_token', None)`  
-**Fix:** Dropbox short-lived tokens expire in ~4 hours. Go to Dropbox App Console → Generate new access token → paste in Settings page → Save Token.
+**Fix:** Dropbox OAuth 2.0 is now fully implemented with automatic refresh. If you still see this:
+1. Go to **Settings → Cloud Backup**
+2. Click **Disconnect**
+3. Click **Connect Dropbox** and re-authorize
+
+### Issue: "Dropbox library not installed" on Railway
+**Cause:** `dropbox` package was missing from `requirements.txt`. Railway only installs listed packages.  
+**Fix:** Added `dropbox==12.0.2` to `requirements.txt`. Redeploy Railway.
 
 ### Issue: App process dies during restart
 **Cause:** `pkill -f "python.*app"` may match the exec process itself, causing SIGTERM.  
 **Fix:** Use `ss -tlnp | grep 5000 | grep -oP 'pid=\K[0-9]+' | xargs kill -9` to kill by port, then `nohup venv/bin/python app.py &`.
-
-### Issue: `cloud_backup.py` missing `files.metadata.read` scope
-**Error:** `unexpected use of the catch-all tag 'other'`  
-**Workaround:** Instead of querying Dropbox metadata API, query `files_list_folder` which works with `files.content.write` + `files.content.read` scopes.
 
 ---
 
@@ -246,11 +377,18 @@ westernfx-ib-tool/
 3. Permissions needed:
    - `files.content.write` — upload backups
    - `files.content.read` — download/restore backups
-4. Click **Generate** next to "Access token"
-5. Copy token → paste in app Settings → Save Token
-6. Click **Backup Now** to test
+   - `sharing.read` — list files in shared folders
+4. Click **OAuth 2** → Set redirect URI to your app URL (e.g., `https://your-app.up.railway.app`)
+5. In the app **Settings → Cloud Backup**, click **Connect Dropbox**
+6. Authorize the app in your browser
+7. Done! Token auto-refreshes forever.
 
-**Note:** The token expires in ~4 hours. For long-term use, implement OAuth refresh flow (not currently implemented — tokens are manual).
+**Railway env vars:**
+```
+DROPBOX_APP_KEY=your_app_key_here
+DROPBOX_APP_SECRET=your_app_secret_here
+DROPBOX_REDIRECT_URI=https://your-app.up.railway.app
+```
 
 ---
 
@@ -317,7 +455,30 @@ Saved WesternFX "My Traders" page. The parser looks for:
 
 ## Environment Variables
 
-None required. All config is in the SQLite `settings` table or `config.py` defaults.
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DROPBOX_APP_KEY` | Yes (Railway) | Dropbox app key |
+| `DROPBOX_APP_SECRET` | Yes (Railway) | Dropbox app secret |
+| `DROPBOX_REDIRECT_URI` | Yes (Railway) | OAuth callback URL |
+| `FLASK_SECRET_KEY` | Optional | Flask session secret (auto-generated if not set) |
+
+---
+
+## Changelog
+
+### v3.0 — Tawhid
+- **Added password protection** with full-page overlay, IP whitelisting, and session tokens
+- **Added Dropbox OAuth 2.0** with automatic token refresh
+- **Removed Google Drive** backup (replaced by Dropbox OAuth)
+- **Removed unused API 1** — only API 2 and API 3 remain
+- Updated watermark to "v3.0 — Tawhid"
+
+### v2.4
+- Monthly snapshot tracking
+- Dashboard with KPIs and charts
+- Cloud backup via Dropbox
+- HTML upload parser
+- API 2 sync with dry-run preview
 
 ---
 

@@ -10,7 +10,6 @@ DATABASE_PATH = os.path.join(os.path.dirname(__file__), "data", "westernfx.db")
 
 # ── Default API URLs ────────────────────────────────────────
 DEFAULT_API_URLS = {
-    "api1": "https://script.google.com/macros/s/AKfycbx2m-4xxpU3HiXl43tTvCti0wiUkclWiQkVG-hlL841xhjsYkRsSjHq_bY2eAvjZWxf/exec",
     "api2": "https://script.google.com/macros/s/AKfycbxqYd0QanVEgAPNj5S4M6vQAtPavFEvhcsa6d_hgx6ip1-tZdLswLPgll17qeiqfuAx/exec",
     "api3": "https://script.google.com/macros/s/AKfycbx3av5WhEMS0MQVXXKxIdk3g6PcETmDw-Ty_sJYm3dstHD6hi2-_X_6J04O8EvQ5xw/exec",
 }
